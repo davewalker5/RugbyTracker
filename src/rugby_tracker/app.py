@@ -312,6 +312,7 @@ def matches_page(service: RugbyService, connection: Any) -> None:
             "Date": row["match_date"], "Competition": f"{row['competition_name']} {row['competition_season']}",
             "Round": row["round"] or "—", "Home": row["home_team_name"], "Away": row["away_team_name"],
             "Score": "Fixture" if row["home_score"] is None else f"{row['home_score']}–{row['away_score']}",
+            "Tries": "Fixture" if row["home_tries"] is None else f"{row['home_tries']}–{row['away_tries']}",
         } for row in matches])
         st.dataframe(
             _style_match_results(table, matches), width="stretch", hide_index=True,

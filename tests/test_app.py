@@ -59,7 +59,13 @@ def test_all_pages_render_against_empty_database(monkeypatch, tmp_path):
         assert not app.exception, page
 
 
-def test_league_table_page_renders_calculated_standings(monkeypatch, tmp_path):
+def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
+    """Results appear correctly in both standings and match table displays.
+
+    :param monkeypatch: Pytest helper used to configure the application database.
+    :param tmp_path: Temporary directory in which to create the test database.
+    :return: None.
+    """
     database = tmp_path / "table.db"
     monkeypatch.setenv("RUGBY_TRACKER_DB", str(database))
     apply_migrations(database)
@@ -90,3 +96,9 @@ def test_league_table_page_renders_calculated_standings(monkeypatch, tmp_path):
 
     assert not app.exception
     assert app.dataframe[0].value["Team"].tolist() == ["Bath", "Leicester Tigers"]
+
+    app.radio[0].set_value("Matches").run()
+
+    assert not app.exception
+    assert app.dataframe[0].value["Score"].tolist() == ["31–17"]
+    assert app.dataframe[0].value["Tries"].tolist() == ["4–2"]
