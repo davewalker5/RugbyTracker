@@ -96,32 +96,19 @@ def _select(
     )
 
 
-def _record_picker(
-    label: str,
-    records: list[dict[str, Any]],
-    display: Callable[[dict[str, Any]], str],
-    placeholder: str,
-    key: str,
+def _selected_record(
+    records: list[dict[str, Any]], selected_rows: list[int]
 ) -> dict[str, Any] | None:
-    """Render a picker for adding a record or editing an existing one.
+    """Resolve a single table-row selection to its source record.
 
-    :param label: User-facing widget label.
-    :param records: Existing entity rows available for editing.
-    :param display: Formatter used to label each existing record.
-    :param placeholder: Instruction displayed while no record is selected.
-    :param key: Stable Streamlit widget key.
-    :return: The selected record, or ``None`` when adding a new one.
+    :param records: Source records in the same order as the displayed table.
+    :param selected_rows: Positional row indexes selected in the table.
+    :return: The selected record, or ``None`` when the selection is empty or stale.
     """
-    by_id = {row["id"]: row for row in records}
-    selected = st.selectbox(
-        label,
-        list(by_id),
-        index=None,
-        format_func=lambda record_id: display(by_id[record_id]),
-        placeholder=placeholder,
-        key=key,
-    )
-    return by_id.get(selected)
+    if not selected_rows:
+        return None
+    index = selected_rows[0]
+    return records[index] if 0 <= index < len(records) else None
 
 
 def _finish_action(connection: Any, message: str) -> None:
@@ -149,7 +136,6 @@ def _entity_page(
     title: str,
     singular: str,
     records: list[dict[str, Any]],
-    display: Callable[[dict[str, Any]], str],
     fields: Callable[[dict[str, Any] | None], dict[str, Any]] | None,
     save: Callable[..., int],
     delete: Callable[[int], None],
@@ -161,7 +147,6 @@ def _entity_page(
     :param title: Plural page heading.
     :param singular: Singular entity name used in form labels and messages.
     :param records: Existing entity rows to display and edit.
-    :param display: Formatter used by the record picker.
     :param fields: Form builder returning values to save.
     :param save: Callback that creates or updates an entity.
     :param delete: Callback that deletes an entity by identifier.
@@ -170,24 +155,27 @@ def _entity_page(
     :return: None.
     """
     st.header(title)
+    selected = None
+    table_key = f"{singular}_table"
     if records:
-        st.dataframe(
+        if st.session_state.pop(f"reset_{table_key}", False):
+            st.session_state[table_key] = {"selection": {"rows": []}}
+        event = st.dataframe(
             [{heading: row.get(key) for key, heading in columns.items()} for row in records],
             width="stretch",
             hide_index=True,
+            key=table_key,
+            on_select="rerun",
+            selection_mode="single-row",
         )
+        selected = _selected_record(records, event.selection.rows)
+        st.caption("Select a table row to edit it, or use the blank form to add a new record.")
     else:
         st.info(f"No {title.lower()} have been recorded yet.")
 
     st.subheader(f"Add or edit {singular}")
-    selected = _record_picker(
-        "Record",
-        records,
-        display,
-        f"Add a new {singular} or select one to edit",
-        f"{singular}_record",
-    )
-    with st.form(f"{singular}_form"):
+    form_record = selected["id"] if selected else "new"
+    with st.form(f"{singular}_form_{form_record}", clear_on_submit=True):
         values = fields(selected) if fields else {}
         save_clicked = st.form_submit_button("Save", type="primary")
         delete_clicked = st.form_submit_button("Delete", disabled=selected is None)
@@ -196,6 +184,7 @@ def _entity_page(
                 save(entity_id=selected["id"] if selected else None, **values)
                 _finish_action(connection, f"{singular.title()} saved.")
             if delete_clicked and selected:
+                st.session_state[f"reset_{table_key}"] = True
                 delete(selected["id"])
                 _finish_action(connection, f"{singular.title()} deleted.")
         except (ValidationError, LookupError) as error:
@@ -223,7 +212,7 @@ def venues_page(service: RugbyService, connection: Any) -> None:
             "country": st.text_input("Country", value=(row["country"] or "") if row else ""),
         }
 
-    _entity_page("Venues", "venue", records, lambda row: row["name"], fields, service.save_venue,
+    _entity_page("Venues", "venue", records, fields, service.save_venue,
                  lambda entity_id: service.delete("venue", entity_id),
                  {"name": "Name", "town_city": "Town/City", "country": "Country"}, connection)
 
@@ -261,7 +250,7 @@ def teams_page(service: RugbyService, connection: Any) -> None:
         }
 
     display_rows = [{**row, "home_venue": venue_names.get(row["home_venue_id"], "")} for row in records]
-    _entity_page("Teams", "team", display_rows, lambda row: row["name"], fields, service.save_team,
+    _entity_page("Teams", "team", display_rows, fields, service.save_team,
                  lambda entity_id: service.delete("team", entity_id),
                  {"name": "Name", "gender": "Category", "home_venue": "Home venue"}, connection)
 
@@ -311,7 +300,7 @@ def competitions_page(service: RugbyService, connection: Any) -> None:
         for row in records
     ]
     _entity_page("Competitions", "competition", display_rows,
-                 lambda row: f"{row['name']} — {row['season']}", fields, service.save_competition,
+                 fields, service.save_competition,
                  lambda entity_id: service.delete("competition", entity_id),
                  {"name": "Name", "season": "Season", "gender": "Category", "ruleset_label": "Ruleset"}, connection)
 
@@ -333,7 +322,7 @@ def referees_page(service: RugbyService, connection: Any) -> None:
         """
         return {"name": st.text_input("Name *", value=row["name"] if row else "")}
 
-    _entity_page("Referees", "referee", records, lambda row: row["name"], fields, service.save_referee,
+    _entity_page("Referees", "referee", records, fields, service.save_referee,
                  lambda entity_id: service.delete("referee", entity_id), {"name": "Name"}, connection)
 
 
@@ -360,6 +349,8 @@ def matches_page(service: RugbyService, connection: Any) -> None:
         st.info("Select a competition to view its matches.")
         return
     matches = service.list_matches(int(selected_competition_id))
+    selected = None
+    table_key = f"matches_table_{selected_competition_id}"
     if matches:
         table = pd.DataFrame([{
             "Date": row["match_date"], "Competition": f"{row['competition_name']} {row['competition_season']}",
@@ -367,20 +358,24 @@ def matches_page(service: RugbyService, connection: Any) -> None:
             "Score": "Fixture" if row["home_score"] is None else f"{row['home_score']}–{row['away_score']}",
             "Tries": "Fixture" if row["home_tries"] is None else f"{row['home_tries']}–{row['away_tries']}",
         } for row in matches])
-        st.dataframe(
-            _style_match_results(table, matches), width="stretch", hide_index=True,
+        if st.session_state.pop(f"reset_{table_key}", False):
+            st.session_state[table_key] = {"selection": {"rows": []}}
+        event = st.dataframe(
+            _style_match_results(table, matches),
+            width="stretch",
+            hide_index=True,
+            key=table_key,
+            on_select="rerun",
+            selection_mode="single-row",
         )
+        selected = _selected_record(matches, event.selection.rows)
+        st.caption("Select a match row to edit it, or use the blank form to add a new match.")
     else:
         st.info("No matches have been recorded yet.")
 
-    selected = _record_picker(
-        "Record",
-        matches,
-        lambda row: f"{row['match_date']} — {row['home_team_name']} v {row['away_team_name']}",
-        "Add a new match or select one to edit",
-        "match_record",
-    )
-    with st.form("match_form"):
+    st.subheader("Add or edit match")
+    form_record = selected["id"] if selected else "new"
+    with st.form(f"match_form_{form_record}", clear_on_submit=True):
         competition_id = _select(
             "Competition *",
             _options(competitions, lambda row: f"{row['name']} — {row['season']}"),
@@ -417,6 +412,7 @@ def matches_page(service: RugbyService, connection: Any) -> None:
                 )
                 _finish_action(connection, "Match saved.")
             if delete_clicked and selected:
+                st.session_state[f"reset_{table_key}"] = True
                 service.delete("match", selected["id"])
                 _finish_action(connection, "Match deleted.")
         except (ValidationError, LookupError) as error:

@@ -123,6 +123,14 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     assert app.dataframe[0].value["Tries"].tolist() == ["4–2"]
     assert all(selector.value is None for selector in app.selectbox[1:])
 
+    app.session_state[f"matches_table_{competition}"] = {"selection": {"rows": [0]}}
+    app.run()
+
+    assert [selector.value for selector in app.selectbox] == [
+        competition, competition, venue, None, home, away,
+    ]
+    assert [field.value for field in app.text_input] == ["", "", "4", "31", "2", "17"]
+
     app.selectbox[0].set_value(later_competition).run()
 
     assert not app.exception
@@ -130,8 +138,20 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     assert app.dataframe[0].value["Score"].tolist() == ["22–12"]
     assert app.dataframe[0].value["Tries"].tolist() == ["3–1"]
 
-    for page in ("Teams", "Competitions", "Venues", "Referees", "CSV Import"):
+    for page in ("Teams", "Competitions", "CSV Import"):
         app.radio[0].set_value(page).run()
         assert not app.exception, page
         assert app.selectbox, page
         assert all(selector.value is None for selector in app.selectbox), page
+
+    app.radio[0].set_value("Competitions").run()
+    app.session_state["competition_table"] = {"selection": {"rows": [0]}}
+    app.run()
+
+    assert [field.value for field in app.text_input] == ["PREM", "2025/26"]
+    assert [selector.value for selector in app.selectbox] == ["Men", "prem_2025_26"]
+
+    for page in ("Venues", "Referees"):
+        app.radio[0].set_value(page).run()
+        assert not app.exception, page
+        assert not app.selectbox, page
