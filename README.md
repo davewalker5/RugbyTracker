@@ -42,15 +42,6 @@ Record match details including:
 
 Rounds may be numeric or descriptive knockout stages such as _Quarter-Final_, _Semi-Final_ and _Final_.
 
-### Competition Summary
-
-Browse competitions and view:
-
-- Fixtures
-- Results
-- Scores
-- Matches grouped by round
-
 ### CSV Import
 
 Import data from CSV files for:
@@ -62,6 +53,8 @@ Import data from CSV files for:
 - Matches
 
 Match imports automatically resolve related entities using case-insensitive name matching while validating all foreign-key relationships.
+
+Imports are additive: when a CSV row identifies a venue, team, competition, referee or match that already exists, the row is skipped and the stored record is left unchanged. To change an existing record, edit it in the application rather than re-importing it.
 
 ### Automatic League Tables
 
@@ -76,8 +69,11 @@ The tracker calculates:
 - Points For
 - Points Against
 - Points Difference
+- Tries For
+- Tries Against
 - Try Bonus Points
 - Losing Bonus Points
+- Grand Slam Bonus Points
 - Total Bonus Points
 - League Points
 
@@ -85,12 +81,16 @@ League tables are calculated dynamically rather than stored in the database.
 
 For the Premiership Rugby and Premiership Women's Rugby rulesets, matches marked _Quarter-Final_, _Semi-Final_ or _Final_ are excluded from the league table. Teams are ranked by league points and then points difference, both descending.
 
+For the Men's and Women's Six Nations rulesets, the tracker validates the six-team, 15-match single round robin and ranks teams by competition points, points difference and tries scored. Once every result is present, it also determines the champion (including a shared title), Grand Slam, Triple Crown and Wooden Spoon.
+
 ### Competition Rules
 
 Support for competition-specific points systems, including:
 
 - Premiership Rugby (2025/26)
 - Premiership Women's Rugby (2025/26)
+- Men's Six Nations
+- Women's Six Nations
 
 ### Export
 

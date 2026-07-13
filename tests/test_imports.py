@@ -54,6 +54,64 @@ def test_venue_import_supports_optional_fields_and_skips_duplicates(connection):
     assert (repeated.imported, repeated.skipped) == (0, 1)
 
 
+def test_every_import_type_ignores_existing_entities_and_leaves_them_intact(
+    service, core_records, connection
+):
+    service.save_match(
+        competition_id=core_records["competition"],
+        venue_id=core_records["venue"],
+        referee_id=core_records["referee"],
+        match_date="2025-09-20",
+        kickoff_time="15:00",
+        round="Round 1",
+        home_team_id=core_records["home"],
+        away_team_id=core_records["away"],
+        home_tries=4,
+        away_tries=2,
+        home_score=31,
+        away_score=17,
+    )
+    importer = CsvImportService(connection)
+
+    reports = [
+        importer.import_csv(
+            "Venues", "name,town_city,country\nthe rec,Changed Town,Changed Country\n"
+        ),
+        importer.import_csv(
+            "Teams", "name,gender,home_venue\nBATH,men,Unknown Ground\n"
+        ),
+        importer.import_csv(
+            "Competitions",
+            "name,season,gender,ruleset\nPREMIERSHIP RUGBY,2025/26,MEN,not-a-ruleset\n",
+        ),
+        importer.import_csv("Referees", "name\nluke pearce\n"),
+        importer.import_csv(
+            "Matches",
+            """competition,season,venue,referee,date,home_team,away_team,home_tries,away_tries,home_score,away_score
+Premiership Rugby,2025/26,,Unknown Referee,2025-09-20,Bath,Leicester Tigers,-1,,,999
+""",
+        ),
+    ]
+
+    assert all((report.imported, report.skipped, report.invalid) == (0, 1, 0) for report in reports)
+    assert service.list_venues()[0] == {
+        "id": core_records["venue"],
+        "name": "The Rec",
+        "town_city": "Bath",
+        "country": "England",
+    }
+    assert service.list_teams()[0]["home_venue_id"] == core_records["venue"]
+    competition = service.repo.competitions.get(core_records["competition"])
+    assert competition is not None and competition["ruleset"] is None
+    assert service.list_referees()[0]["name"] == "Luke Pearce"
+    existing_match = service.list_matches(core_records["competition"])[0]
+    assert existing_match["round"] == "Round 1"
+    assert existing_match["venue_id"] == core_records["venue"]
+    assert existing_match["referee_id"] == core_records["referee"]
+    assert existing_match["home_score"] == 31
+    assert existing_match["away_score"] == 17
+
+
 def test_match_import_resolves_names_and_supports_fixtures_and_results(service, core_records, connection):
     importer = CsvImportService(connection)
     content = """competition,season,round,venue,referee,date,kick-off time,home team,away team,home tries,away tries,home score,away score
@@ -73,6 +131,39 @@ Premiership Rugby,2025/26,Final,Welford Road,,2025-09-27,,Leicester Tigers,Bath,
 
     repeated = importer.import_csv("Matches", content)
     assert (repeated.imported, repeated.skipped) == (0, 2)
+
+
+def test_m6n_2026_import_bundle_produces_the_official_final_table(connection):
+    importer = CsvImportService(connection)
+    root = Path("data/imports/M6N-2026")
+    imports = (
+        ("Venues", "venues.csv", 7),
+        ("Teams", "teams.csv", 6),
+        ("Competitions", "competitions.csv", 1),
+        ("Referees", "referees.csv", 12),
+        ("Matches", "matches.csv", 15),
+    )
+
+    for entity_type, filename, expected in imports:
+        report = importer.import_csv(entity_type, (root / filename).read_bytes())
+        assert (report.imported, report.skipped, report.invalid) == (expected, 0, 0)
+
+    competition = importer.rugby.list_competitions()[0]
+    result = importer.rugby.league_table(competition["id"])
+    summary = [
+        (row["Team"], row["PF"], row["PA"], row["Pts"])
+        for row in result["table"]
+    ]
+
+    assert result["complete"] is True
+    assert summary == [
+        ("France", 211, 130, 21),
+        ("Ireland", 146, 108, 18),
+        ("Scotland", 143, 144, 16),
+        ("Italy", 79, 117, 9),
+        ("England", 153, 151, 8),
+        ("Wales", 90, 172, 6),
+    ]
 
 
 def test_same_competition_name_across_seasons_is_allowed_and_matches_correctly(

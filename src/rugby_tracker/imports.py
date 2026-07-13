@@ -151,6 +151,10 @@ class CsvImportService:
         seen = self._existing_keys(entity_type)
         for row_number, row in rows:
             report.total_rows += 1
+            raw_key = self._duplicate_key_from_row(entity_type, row)
+            if raw_key is not None and raw_key in seen:
+                report.skipped += 1
+                continue
             values, messages = validator(row)
             if messages:
                 report.issues.append(ImportIssue(row_number, tuple(messages)))
@@ -491,6 +495,99 @@ class CsvImportService:
             (row["competition_id"], row["match_date"], row["home_team_id"], row["away_team_id"])
             for row in rows
         }
+
+    def _duplicate_key_from_row(
+        self, entity_type: str, row: dict[str, str]
+    ) -> tuple[Any, ...] | None:
+        """Build an identity key before validating non-identity fields.
+
+        This allows a row representing an existing entity to be skipped even if
+        its other values differ from the stored record or are invalid. A key is
+        returned only when every identity field is valid and unambiguous.
+
+        :param entity_type: Supported entity type being imported.
+        :param row: Normalised but otherwise unvalidated CSV row.
+        :return: Duplicate key, or ``None`` when identity cannot be established.
+        """
+        name = optional_text(row.get("name"))
+        if entity_type in {"Venues", "Referees"}:
+            return (name.casefold(),) if name else None
+
+        if entity_type == "Teams":
+            gender = self._identity_gender(row.get("gender"))
+            return (name.casefold(), gender.casefold()) if name and gender else None
+
+        if entity_type == "Competitions":
+            season = optional_text(row.get("season"))
+            gender = self._identity_gender(row.get("gender"))
+            return (
+                (name.casefold(), season.casefold(), gender.casefold())
+                if name and season and gender else None
+            )
+
+        competition_id = self._identity_competition_id(
+            row.get("competition"), row.get("season")
+        )
+        home_team_id = self._identity_entity_id("teams", row.get("home_team"))
+        away_team_id = self._identity_entity_id("teams", row.get("away_team"))
+        try:
+            match_date = date.fromisoformat(required_text(row.get("date"), "Match date")).isoformat()
+        except (ValidationError, ValueError):
+            return None
+        if None in (competition_id, home_team_id, away_team_id):
+            return None
+        return competition_id, match_date, home_team_id, away_team_id
+
+    @staticmethod
+    def _identity_gender(value: str | None) -> str | None:
+        """Resolve a gender only when it is a supported identity value.
+
+        :param value: Raw category from a CSV row.
+        :return: Canonical category, or ``None`` when invalid or absent.
+        """
+        candidate = optional_text(value)
+        return next(
+            (gender for gender in GENDERS if candidate and gender.casefold() == candidate.casefold()),
+            None,
+        )
+
+    def _identity_competition_id(
+        self, name_value: str | None, season_value: str | None
+    ) -> int | None:
+        """Resolve an unambiguous competition for duplicate detection.
+
+        :param name_value: Competition name from a CSV row.
+        :param season_value: Competition season from a CSV row.
+        :return: Existing identifier, or ``None`` when absent or ambiguous.
+        """
+        name = optional_text(name_value)
+        season = optional_text(season_value)
+        if name is None or season is None:
+            return None
+        rows = self.connection.execute(
+            """
+            SELECT id FROM competitions
+            WHERE name = ? COLLATE NOCASE AND season = ? COLLATE NOCASE
+            ORDER BY id
+            """,
+            (name, season),
+        ).fetchall()
+        return int(rows[0]["id"]) if len(rows) == 1 else None
+
+    def _identity_entity_id(self, table: str, value: str | None) -> int | None:
+        """Resolve an unambiguous named entity for duplicate detection.
+
+        :param table: Trusted entity table to search.
+        :param value: Entity name from a CSV row.
+        :return: Existing identifier, or ``None`` when absent or ambiguous.
+        """
+        name = optional_text(value)
+        if name is None:
+            return None
+        rows = self.connection.execute(
+            f"SELECT id FROM {table} WHERE name = ? COLLATE NOCASE ORDER BY id", (name,)
+        ).fetchall()
+        return int(rows[0]["id"]) if len(rows) == 1 else None
 
     @staticmethod
     def _duplicate_key(entity_type: str, values: dict[str, Any]) -> tuple[Any, ...]:

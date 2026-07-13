@@ -1,0 +1,76 @@
+competition,season,round,venue,referee,date,kickoff_time,home_team,away_team,home_tries,away_tries,home_score,away_score
+PWR,2025/26,1,Twickenham Stoop,Andy Wigley,2025-10-24,19:30,Harlequins Women,Loughborough Lightning,8,6,52,42
+PWR,2025/26,1,Trailfinders Sports Club,Nikki O'Donnell ,2025-10-25,15:00,Trailfinders Women,Exeter Chiefs Women,2,4,12,24
+PWR,2025/26,1,Morson Stadium,Michael Lamb,2025-10-25,19:00,Sale Sharks Women,Leicester Tigers Women,8,3,46,17
+PWR,2025/26,1,Kingsholm,Holly Wood,2025-10-26,15:00,Gloucester-Hartpury,Saracens Women,6,2,40,14
+PWR,2025/26,2,Sandy Park,Michael Lamb,2025-11-01,15:00,Exeter Chiefs Women,Gloucester-Hartpury,5,7,31,47
+PWR,2025/26,2,Mattioli Woods Welford Road,Holly Wood,2025-11-02,13:00,Leicester Tigers Women,Bristol Bears Women,0,12,0,74
+PWR,2025/26,2,Cinch Stadium,Nikki O'Donnell ,2025-11-02,13:00,Loughborough Lightning,Sale Sharks Women,3,2,19,12
+PWR,2025/26,2,StoneX Stadium,Richard Gordon,2025-11-02,15:00,Saracens Women,Harlequins Women,7,2,47,10
+PWR,2025/26,3,Morson Stadium,Charlie Gayther,2025-11-08,15:00,Sale Sharks Women,Trailfinders Women,4,10,22,64
+PWR,2025/26,3,Twickenham Stoop,Henry Pearson,2025-11-09,12:30,Harlequins Women,Gloucester-Hartpury,4,5,26,33
+PWR,2025/26,3,Shaftesbury Park,Mike Hudson,2025-11-09,14:30,Bristol Bears Women,Saracens Women,2,5,12,33
+PWR,2025/26,3,Cinch Stadium,Holly Wood,2025-11-09,14:30,Loughborough Lightning,Exeter Chiefs Women,5,5,33,33
+PWR,2025/26,4,StoneX Stadium,Becky Piddlesden,2025-11-15,15:00,Saracens Women,Leicester Tigers Women,13,1,79,5
+PWR,2025/26,4,Trailfinders Sports Club,Benjamin Wood,2025-11-15,15:00,Trailfinders Women,Bristol Bears Women,7,3,45,19
+PWR,2025/26,4,Kingsholm,George Ounsley,2025-11-15,15:00,Gloucester-Hartpury,Sale Sharks Women,6,4,40,24
+PWR,2025/26,4,Sandy Park,Holly Wood,2025-11-16,12:30,Exeter Chiefs Women,Harlequins Women,4,3,26,19
+PWR,2025/26,5,Morson Stadium,Daniel Rowlands,2025-11-29,14:00,Sale Sharks Women,Exeter Chiefs Women,2,4,26,26
+PWR,2025/26,5,Cinch Stadium,Samuel Yates,2025-11-29,15:00,Loughborough Lightning,Leicester Tigers Women,4,2,50,15
+PWR,2025/26,5,Trailfinders Sports Club,Matt Sharpe,2025-11-29,15:00,Trailfinders Women,Saracens Women,1,5,5,57
+PWR,2025/26,5,Ashton Gate,Harry Walbaum,2025-11-30,12:30,Bristol Bears Women,Gloucester-Hartpury,2,8,14,54
+PWR,2025/26,6,Sandy Park,Henry Pearson,2025-12-06,13:00,Exeter Chiefs Women,Bristol Bears Women,4,1,41,10
+PWR,2025/26,6,Kingsholm,Nikki O'Donnell,2025-12-06,15:05,Gloucester-Hartpury,Trailfinders Women,5,4,29,28
+PWR,2025/26,6,Mattioli Woods Welford Road,Andy Wigley,2025-12-06,17:05,Leicester Tigers Women,Harlequins Women,4,8,28,56
+PWR,2025/26,6,StoneX Stadium,Michael Lamb,2025-12-07,15:00,Saracens Women,Loughborough Lightning,5,3,33,15
+PWR,2025/26,7,Trailfinders Sports Club,Michael Lamb,2025-12-13,13:00,Trailfinders Women,Leicester Tigers Women,9,2,57,10
+PWR,2025/26,7,Sandy Park,Jamie Parr,2025-12-13,15:05,Exeter Chiefs Women,Saracens Women,2,4,14,24
+PWR,2025/26,7,Twickenham Stoop,Nikki O'Donnell,2025-12-13,17:30,Harlequins Women,Sale Sharks Women,4,2,22,17
+PWR,2025/26,7,Shaftesbury Park,Mike Hudson,2025-12-14,13:00,Bristol Bears Women,Loughborough Lightning,3,4,19,31
+PWR,2025/26,8,Allianz Stadium,Alex Thomas,2025-12-20,15:05,Harlequins Women,Bristol Bears Women,6,2,38,12
+PWR,2025/26,8,Morson Stadium,Henry Pearson,2025-12-21,13:00,Sale Sharks Women,Saracens Women,3,5,17,36
+PWR,2025/26,8,Cinch Stadium,Andy Wigley,2025-12-21,14:00,Loughborough Lightning,Trailfinders Women,5,4,29,29
+PWR,2025/26,8,Mattioli Woods Welford Road,Andy Wigley,2025-12-21,15:00,Leicester Tigers Women,Gloucester-Hartpury,2,11,12,75
+PWR,2025/26,9,Trailfinders Sports Club,Charlie Gayther,2026-01-30,19:30,Trailfinders Women,Harlequins Women,4,5,26,27
+PWR,2025/26,9,Shaftesbury Park,Michael Lamb,2026-02-01,13:00,Bristol Bears Women,Sale Sharks Women,5,5,30,29
+PWR,2025/26,9,Sandy Park,Natarsha Ganley,2026-02-01,13:00,Exeter Chiefs Women,Leicester Tigers Women,6,0,36,0
+PWR,2025/26,9,Kingsholm,Hamish Grant,2026-02-01,15:00,Gloucester-Hartpury,Loughborough Lightning,7,4,45,28
+PWR,2025/26,10,Shaftesbury Park,Natarsha Ganley,2026-02-07,12:00,Bristol Bears Women,Trailfinders Women,4,4,26,26
+PWR,2025/26,10,Morson Stadium,Andrew Jackson,2026-02-07,12:30,Sale Sharks Women,Gloucester-Hartpury,1,4,7,22
+PWR,2025/26,10,Mattioli Woods Welford Road,Charlie Gayther,2026-02-08,13:00,Leicester Tigers Women,Saracens Women,0,13,0,81
+PWR,2025/26,10,Twickenham Stoop,Andy Wigley,2026-02-08,15:00,Harlequins Women,Exeter Chiefs Women,5,6,38,38
+PWR,2025/26,11,Kingsholm,Natarsha Ganley,2026-02-14,12:00,Gloucester-Hartpury,Harlequins Women,7,4,45,22
+PWR,2025/26,11,Trailfinders Sports Club,Andy Wigley,2026-02-14,15:00,Trailfinders Women,Sale Sharks Women,5,5,31,36
+PWR,2025/26,11,StoneX Stadium,Michael Lamb,2026-02-15,13:30,Saracens Women,Bristol Bears Women,5,5,36,33
+PWR,2025/26,11,Sandy Park,Matt Sharpe,2026-02-15,13:00,Exeter Chiefs Women,Loughborough Lightning,4,1,26,5
+PWR,2025/26,12,Mattioli Woods Welford Road,Daniel Rowlands,2026-02-21,13:15,Leicester Tigers Women,Trailfinders Women,3,6,19,40
+PWR,2025/26,12,Morson Stadium,Ben Simpson,2026-02-21,15:00,Sale Sharks Women,Harlequins Women,2,2,15,12
+PWR,2025/26,12,StoneX Stadium,Mike Hudson,2026-02-21,19:30,Saracens Women,Exeter Chiefs Women,7,1,45,7
+PWR,2025/26,12,Cinch Stadium,Natarsha Ganley,2026-02-22,15:00,Loughborough Lightning,Bristol Bears Women,3,4,21,24
+PWR,2025/26,13,Kingsholm,Charlie Gayther,2026-03-06,19:30,Gloucester-Hartpury,Exeter Chiefs Women,6,4,38,20
+PWR,2025/26,13,Shaftesbury Park,Matt Sharpe,2026-03-07,14:30,Bristol Bears Women,Leicester Tigers Women,10,0,68,0
+PWR,2025/26,13,Twickenham Stoop,Jamie Parr,2026-03-07,12:15,Harlequins Women,Saracens Women,4,6,26,43
+PWR,2025/26,13,Morson Stadium,Nikki O'Donnell,2026-03-07,15:00,Sale Sharks Women,Loughborough Lightning,5,4,31,29
+PWR,2025/26,14,Cinch Stadium,Joe James,2026-03-13,19:30,Loughborough Lightning,Harlequins Women,7,5,43,33
+PWR,2025/26,14,Sandy Park,Richard Gordon,2026-03-14,12:30,Exeter Chiefs Women,Trailfinders Women,7,2,47,14
+PWR,2025/26,14,Mattioli Woods Welford Road,Andy Wigley,2026-03-14,13:00,Leicester Tigers Women,Sale Sharks Women,0,9,3,62
+PWR,2025/26,14,StoneX Stadium,Sara Cox,2026-03-15,12:30,Saracens Women,Gloucester-Hartpury,2,4,17,22
+PWR,2025/26,15,Twickenham Stoop,Craig Maxwell-Keys,2026-03-20,19:30,Harlequins Women,Trailfinders Women,3,3,17,21
+PWR,2025/26,15,Mattioli Woods Welford Road,Matt Sharpe,2026-03-21,12:30,Leicester Tigers Women,Exeter Chiefs Women,0,7,0,43
+PWR,2025/26,15,Cinch Stadium,Henry Pearson,2026-03-22,12:15,Loughborough Lightning,Gloucester-Hartpury,6,7,38,43
+PWR,2025/26,15,Morson Stadium,Michael Lamb,2026-03-22,15:00,Sale Sharks Women,Bristol Bears Women,3,1,25,7
+PWR,2025/26,16,Principality Stadium,,2026-03-28,12:30,Bristol Bears Women,Harlequins Women,3,2,17,14
+PWR,2025/26,16,Tottenham Hotspur Stadium,,2026-03-28,14:30,Saracens Women,Sale Sharks Women,8,0,54,0
+PWR,2025/26,16,Trailfinders Sports Club,,2026-03-29,12:15,Trailfinders Women,Loughborough Lightning,7,4,39,26
+PWR,2025/26,16,Kingsholm,,2026-03-29,14:30,Gloucester-Hartpury,Leicester Tigers Women,9,2,51,14
+PWR,2025/26,17,Trailfinders Sports Club,Hamish Grant,2026-05-29,19:30,Trailfinders Women,Gloucester-Hartpury,6,7,41,39
+PWR,2025/26,17,Shaftesbury Park,Benjamin Wood,2026-05-30,13:00,Bristol Bears Women,Exeter Chiefs Women,1,9,5,57
+PWR,2025/26,17,Twickenham Stoop,Nikki O'Donnell,2026-05-30,14:30,Harlequins Women,Leicester Tigers Women,8,4,50,29
+PWR,2025/26,17,Cinch Stadium,Holly Wood,2026-05-30,12:00,Loughborough Lightning,Saracens Women,4,10,24,62
+PWR,2025/26,17,Sandy Park,Nikki O'Donnell,2026-06-07,15:30,Exeter Chiefs Women,Sale Sharks Women,8,4,50,24
+PWR,2025/26,18,Kingsholm,Holly Wood,2026-06-06,15:30,Gloucester-Hartpury,Bristol Bears Women,3,4,21,26
+PWR,2025/26,18,Mattioli Woods Welford Road,Matt Sharpe,2026-06-06,15:30,Leicester Tigers Women,Loughborough Lightning,6,8,36,50
+PWR,2025/26,18,StoneX Stadium,Benjamin Wood,2026-06-06,15:30,Saracens Women,Trailfinders Women,12,2,80,14
+PWR,2025/26,Semi-Final,Kingsholm,Henry Pearson,2026-06-14,13:00,Gloucester-Hartpury,Trailfinders Women,4,5,26,29
+PWR,2025/26,Semi-Final,StoneX Stadium,Richard Gordon,2026-06-14,16:30,Saracens Women,Exeter Chiefs Women,6,6,40,38
+PWR,2025/26,Final,Twickenham Stoop,Holly Wood,2026-06-28,15:00,Saracens Women,Trailfinders Women,8,2,52,14
