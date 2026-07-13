@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 from streamlit.web import cli as streamlit_cli
-
-from .config import PROJECT_ROOT
 
 
 def main() -> None:
@@ -14,6 +13,6 @@ def main() -> None:
 
     :return: None. The function exits with Streamlit's process status.
     """
-    app = PROJECT_ROOT / "src" / "streamlit_app.py"
+    app = Path(__file__).with_name("app.py")
     sys.argv = [sys.argv[0], "run", str(app), *sys.argv[1:]]
     raise SystemExit(streamlit_cli.main())

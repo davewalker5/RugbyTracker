@@ -40,6 +40,8 @@ Record match details including:
 - Tries scored
 - Final scores
 
+Rounds may be numeric or descriptive knockout stages such as _Quarter-Final_, _Semi-Final_ and _Final_.
+
 ### Competition Summary
 
 Browse competitions and view:
@@ -80,6 +82,8 @@ The tracker calculates:
 - League Points
 
 League tables are calculated dynamically rather than stored in the database.
+
+For the Premiership Rugby and Premiership Women's Rugby rulesets, matches marked _Quarter-Final_, _Semi-Final_ or _Final_ are excluded from the league table. Teams are ranked by league points and then points difference, both descending.
 
 ### Competition Rules
 

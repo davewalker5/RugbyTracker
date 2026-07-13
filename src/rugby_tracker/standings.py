@@ -18,6 +18,7 @@ class Ruleset:
     draw_points: int
     try_bonus_threshold: int
     losing_bonus_margin: int
+    excluded_rounds: frozenset[str]
 
 
 RULESETS = {
@@ -28,6 +29,7 @@ RULESETS = {
         draw_points=2,
         try_bonus_threshold=4,
         losing_bonus_margin=7,
+        excluded_rounds=frozenset({"quarter-final", "semi-final", "final"}),
     ),
     "pwr_2025_26": Ruleset(
         identifier="pwr_2025_26",
@@ -36,6 +38,7 @@ RULESETS = {
         draw_points=2,
         try_bonus_threshold=4,
         losing_bonus_margin=7,
+        excluded_rounds=frozenset({"quarter-final", "semi-final", "final"}),
     ),
 }
 
@@ -124,6 +127,9 @@ def calculate_table(matches: list[dict[str, Any]], ruleset_identifier: str) -> l
     ruleset = get_ruleset(ruleset_identifier)
     standings: dict[int, Standing] = {}
     for match in matches:
+        round_name = str(match.get("round") or "").strip().casefold()
+        if round_name in ruleset.excluded_rounds:
+            continue
         home = standings.setdefault(
             int(match["home_team_id"]),
             Standing(int(match["home_team_id"]), str(match["home_team_name"])),
@@ -139,9 +145,7 @@ def calculate_table(matches: list[dict[str, Any]], ruleset_identifier: str) -> l
         standings.values(),
         key=lambda row: (
             -row.league_points,
-            -row.won,
             -row.points_difference,
-            -row.points_for,
             row.team.casefold(),
             row.team_id,
         ),

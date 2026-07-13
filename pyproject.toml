@@ -4,11 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rugby-union-tracker"
-version = "0.3.0"
+version = "1.0.0"
 description = "Rugby Union Competition Tracker"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+  "pandas>=2.2.3",
   "pytest",
   "streamlit>=1.58",
   "yoyo-migrations>=9.0",

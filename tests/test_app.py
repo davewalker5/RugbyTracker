@@ -1,14 +1,51 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+import pandas as pd
 from streamlit.testing.v1 import AppTest
 
+from rugby_tracker.app import DRAW_BACKGROUND, LOSS_BACKGROUND, WIN_BACKGROUND, _style_match_results
 from rugby_tracker.database import apply_migrations, connect
 from rugby_tracker.services import RugbyService
 
 
+APP_PATH = Path(__file__).resolve().parents[1] / "src" / "streamlit_app.py"
+
+
+def test_match_result_styles_colour_team_cells() -> None:
+    """Completed results receive winner, loser, or draw backgrounds.
+
+    :return: None.
+    """
+    table = pd.DataFrame([
+        {"Home": "Home winner", "Away": "Away loser"},
+        {"Home": "Home loser", "Away": "Away winner"},
+        {"Home": "Drawn home", "Away": "Drawn away"},
+        {"Home": "Future home", "Away": "Future away"},
+    ])
+    matches = [
+        {"home_score": 24, "away_score": 17},
+        {"home_score": 10, "away_score": 15},
+        {"home_score": 20, "away_score": 20},
+        {"home_score": None, "away_score": None},
+    ]
+
+    context = _style_match_results(table, matches)._compute().ctx
+
+    assert context[(0, 0)] == [("background-color", WIN_BACKGROUND)]
+    assert context[(0, 1)] == [("background-color", LOSS_BACKGROUND)]
+    assert context[(1, 0)] == [("background-color", LOSS_BACKGROUND)]
+    assert context[(1, 1)] == [("background-color", WIN_BACKGROUND)]
+    assert context[(2, 0)] == [("background-color", DRAW_BACKGROUND)]
+    assert context[(2, 1)] == [("background-color", DRAW_BACKGROUND)]
+    assert (3, 0) not in context
+    assert (3, 1) not in context
+
+
 def test_app_starts_with_an_empty_database(monkeypatch, tmp_path):
     monkeypatch.setenv("RUGBY_TRACKER_DB", str(tmp_path / "app.db"))
-    app = AppTest.from_file("streamlit_app.py", default_timeout=10).run()
+    app = AppTest.from_file(APP_PATH, default_timeout=10).run()
     assert not app.exception
     assert app.title[0].value == "🏉 Rugby Tracker"
     assert "Add a competition" in app.info[0].value
@@ -16,13 +53,20 @@ def test_app_starts_with_an_empty_database(monkeypatch, tmp_path):
 
 def test_all_pages_render_against_empty_database(monkeypatch, tmp_path):
     monkeypatch.setenv("RUGBY_TRACKER_DB", str(tmp_path / "pages.db"))
-    app = AppTest.from_file("streamlit_app.py", default_timeout=10).run()
+    app = AppTest.from_file(APP_PATH, default_timeout=10).run()
+    assert "Competition Summary" not in app.radio[0].options
     for page in ("League Table", "Matches", "CSV Import", "Competitions", "Teams", "Venues", "Referees"):
         app.radio[0].set_value(page).run()
         assert not app.exception, page
 
 
-def test_league_table_page_renders_calculated_standings(monkeypatch, tmp_path):
+def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
+    """Results appear correctly in both standings and match table displays.
+
+    :param monkeypatch: Pytest helper used to configure the application database.
+    :param tmp_path: Temporary directory in which to create the test database.
+    :return: None.
+    """
     database = tmp_path / "table.db"
     monkeypatch.setenv("RUGBY_TRACKER_DB", str(database))
     apply_migrations(database)
@@ -33,6 +77,9 @@ def test_league_table_page_renders_calculated_standings(monkeypatch, tmp_path):
     away = service.save_team(name="Leicester Tigers", gender="Men", home_venue_id=venue)
     competition = service.save_competition(
         name="PREM", season="2025/26", gender="Men", ruleset="prem_2025_26"
+    )
+    later_competition = service.save_competition(
+        name="PREM", season="2026/27", gender="Men", ruleset="prem_2025_26"
     )
     service.save_match(
         competition_id=competition,
@@ -45,11 +92,74 @@ def test_league_table_page_renders_calculated_standings(monkeypatch, tmp_path):
         home_score=31,
         away_score=17,
     )
+    service.save_match(
+        competition_id=later_competition,
+        venue_id=venue,
+        match_date="2026-09-20",
+        home_team_id=away,
+        away_team_id=home,
+        home_tries=3,
+        away_tries=1,
+        home_score=22,
+        away_score=12,
+    )
     connection.commit()
     connection.close()
 
-    app = AppTest.from_file("streamlit_app.py", default_timeout=10).run()
+    app = AppTest.from_file(APP_PATH, default_timeout=10).run()
     app.radio[0].set_value("League Table").run()
 
     assert not app.exception
+    assert app.selectbox[0].value is None
+    app.selectbox[0].set_value(competition).run()
     assert app.dataframe[0].value["Team"].tolist() == ["Bath", "Leicester Tigers"]
+
+    app.radio[0].set_value("Matches").run()
+
+    assert not app.exception
+    assert app.selectbox[0].value is None
+    app.selectbox[0].set_value(competition).run()
+    assert app.dataframe[0].value["Score"].tolist() == ["31–17"]
+    assert app.dataframe[0].value["Tries"].tolist() == ["4–2"]
+    assert all(selector.value is None for selector in app.selectbox[1:])
+
+    app.session_state[f"matches_table_{competition}"] = {"selection": {"rows": [0]}}
+    app.run()
+
+    assert [selector.value for selector in app.selectbox] == [
+        competition, competition, venue, None, home, away,
+    ]
+    assert [field.value for field in app.text_input] == ["", "", "4", "31", "2", "17"]
+    assert [button.label for button in app.button] == ["Save", "Delete", "Clear"]
+
+    app.button[2].click().run()
+
+    assert [selector.value for selector in app.selectbox] == [
+        competition, None, None, None, None, None,
+    ]
+    assert all(field.value == "" for field in app.text_input)
+
+    app.selectbox[0].set_value(later_competition).run()
+
+    assert not app.exception
+    assert app.dataframe[0].value["Competition"].tolist() == ["PREM 2026/27"]
+    assert app.dataframe[0].value["Score"].tolist() == ["22–12"]
+    assert app.dataframe[0].value["Tries"].tolist() == ["3–1"]
+
+    for page in ("Teams", "Competitions", "CSV Import"):
+        app.radio[0].set_value(page).run()
+        assert not app.exception, page
+        assert app.selectbox, page
+        assert all(selector.value is None for selector in app.selectbox), page
+
+    app.radio[0].set_value("Competitions").run()
+    app.session_state["competition_table"] = {"selection": {"rows": [0]}}
+    app.run()
+
+    assert [field.value for field in app.text_input] == ["PREM", "2025/26"]
+    assert [selector.value for selector in app.selectbox] == ["Men", "prem_2025_26"]
+
+    for page in ("Venues", "Referees"):
+        app.radio[0].set_value(page).run()
+        assert not app.exception, page
+        assert not app.selectbox, page

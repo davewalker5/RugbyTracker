@@ -266,29 +266,6 @@ class RugbyService:
                 f"This {entity} is in use and cannot be deleted. Update or delete its related records first."
             ) from error
 
-    def competition_summary(self, competition_id: int) -> dict[str, Any]:
-        """Build a competition summary grouped by first-seen round order.
-
-        :param competition_id: Competition identifier to summarise.
-        :return: Competition details, ordered round groups, and enriched matches.
-        :raises ValidationError: If the competition does not exist.
-        """
-        competition = self.repo.competitions.get(competition_id)
-        if competition is None:
-            raise ValidationError("Select a valid competition.")
-        matches = self.repo.list_matches(competition_id)
-        rounds: list[dict[str, Any]] = []
-        by_name: dict[str, dict[str, Any]] = {}
-        for match in matches:
-            name = match["round"] or "Unspecified round"
-            if name not in by_name:
-                by_name[name] = {"name": name, "matches": []}
-                rounds.append(by_name[name])
-            match["is_result"] = match["home_score"] is not None
-            match.update(self._outcome(match))
-            by_name[name]["matches"].append(match)
-        return {"competition": competition, "rounds": rounds, "matches": matches}
-
     def league_table(self, competition_id: int) -> dict[str, Any]:
         """Calculate the current table for a competition.
 
@@ -383,26 +360,3 @@ class RugbyService:
             return time.fromisoformat(str(value)).strftime("%H:%M")
         except ValueError as error:
             raise ValidationError("Kick-off time must be a valid time.") from error
-
-    @staticmethod
-    def _outcome(match: dict[str, Any]) -> dict[str, Any]:
-        """Derive winner, loser, and draw fields for a match.
-
-        :param match: Enriched match row containing team names and scores.
-        :return: Derived outcome fields without persisting them.
-        """
-        if match["home_score"] is None:
-            return {"winner": None, "loser": None, "is_draw": False}
-        if match["home_score"] == match["away_score"]:
-            return {"winner": None, "loser": None, "is_draw": True}
-        if match["home_score"] > match["away_score"]:
-            return {
-                "winner": match["home_team_name"],
-                "loser": match["away_team_name"],
-                "is_draw": False,
-            }
-        return {
-            "winner": match["away_team_name"],
-            "loser": match["home_team_name"],
-            "is_draw": False,
-        }

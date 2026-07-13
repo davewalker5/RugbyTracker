@@ -48,11 +48,9 @@ def test_match_can_be_a_fixture_then_updated_to_a_result(service, core_records):
         match_date="2025-09-20", kickoff_time="15:05", home_team_id=core_records["home"],
         away_team_id=core_records["away"], home_tries=4, away_tries=2, home_score=31, away_score=17,
     )
-    result = service.competition_summary(core_records["competition"])["matches"][0]
-    assert result["is_result"] is True
-    assert result["winner"] == "Bath"
-    assert result["loser"] == "Leicester Tigers"
-    assert result["is_draw"] is False
+    result = service.list_matches(core_records["competition"])[0]
+    assert result["home_score"] == 31
+    assert result["away_score"] == 17
 
 
 def test_match_validation_reports_incomplete_scores_and_same_team(service, core_records):
@@ -69,21 +67,6 @@ def test_match_validation_reports_incomplete_scores_and_same_team(service, core_
         service.save_match(**base, home_tries=-1, away_tries=0, home_score=0, away_score=0)
 
 
-def test_summary_groups_rounds_in_fixture_order_and_marks_draw(service, core_records):
-    common = {
-        "competition_id": core_records["competition"], "venue_id": core_records["venue"],
-        "home_team_id": core_records["home"], "away_team_id": core_records["away"],
-        "home_tries": 1, "away_tries": 1, "home_score": 10, "away_score": 10,
-    }
-    service.save_match(**common, round="Round 2", match_date="2025-09-27")
-    service.save_match(**common, round="Round 1", match_date="2025-09-20")
-    summary = service.competition_summary(core_records["competition"])
-    assert [round_data["name"] for round_data in summary["rounds"]] == ["Round 1", "Round 2"]
-    assert summary["matches"][0]["winner"] is None
-    assert summary["matches"][0]["loser"] is None
-    assert summary["matches"][0]["is_draw"] is True
-
-
 def test_referenced_record_cannot_be_deleted(service, core_records):
     with pytest.raises(ValidationError, match="in use"):
         service.delete("venue", core_records["venue"])
@@ -93,3 +76,17 @@ def test_unreferenced_record_can_be_deleted(service):
     referee_id = service.save_referee(name="Temporary Official")
     service.delete("referee", referee_id)
     assert service.list_referees() == []
+
+
+@pytest.mark.parametrize("round_name", ("1", "Quarter-Final", "Semi-Final", "Final"))
+def test_match_round_supports_numbers_and_knockout_names(service, core_records, round_name):
+    service.save_match(
+        competition_id=core_records["competition"],
+        round=round_name,
+        venue_id=core_records["venue"],
+        match_date="2026-05-01",
+        home_team_id=core_records["home"],
+        away_team_id=core_records["away"],
+    )
+    match = service.list_matches(core_records["competition"])[0]
+    assert match["round"] == round_name
