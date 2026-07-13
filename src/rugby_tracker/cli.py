@@ -14,6 +14,6 @@ def main() -> None:
 
     :return: None. The function exits with Streamlit's process status.
     """
-    app = PROJECT_ROOT / "streamlit_app.py"
+    app = PROJECT_ROOT / "src" / "streamlit_app.py"
     sys.argv = [sys.argv[0], "run", str(app), *sys.argv[1:]]
     raise SystemExit(streamlit_cli.main())
