@@ -5,4 +5,6 @@ cd "$PROJECT_ROOT"
 
 . venv/bin/activate
 
-streamlit run src/rugby_tracker/app.py
+export PYTHONPATH="$PROJECT_ROOT/src"
+
+venv/bin/rugby-tracker

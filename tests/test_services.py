@@ -22,7 +22,7 @@ def test_crud_for_reference_entities(service, core_records):
     [
         (lambda service: service.save_venue(name="   "), "Venue name is required."),
         (lambda service: service.save_referee(name=None), "Referee name is required."),
-        (lambda service: service.save_competition(name="League", season="", gender="Men's"), "Season is required."),
+        (lambda service: service.save_competition(name="League", season="", gender="Men"), "Season is required."),
         (lambda service: service.save_team(name="Club", gender="Mixed", home_venue_id=1), "Category must be"),
     ],
 )

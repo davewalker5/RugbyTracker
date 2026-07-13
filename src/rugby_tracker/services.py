@@ -9,7 +9,7 @@ from typing import Any
 from rugby_tracker.repositories import Repository, RugbyRepository
 
 
-GENDERS = ("Men's", "Women's")
+GENDERS = ("Men", "Women")
 
 
 class ValidationError(ValueError):
@@ -48,7 +48,7 @@ def valid_gender(value: Any) -> str:
     :raises ValidationError: If the category is unsupported.
     """
     if value not in GENDERS:
-        raise ValidationError("Category must be Men's or Women's.")
+        raise ValidationError("Category must be Men or Women.")
     return str(value)
 
 

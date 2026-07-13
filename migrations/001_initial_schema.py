@@ -20,7 +20,7 @@ steps = [
         CREATE TABLE teams (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL CHECK (trim(name) <> ''),
-            gender TEXT NOT NULL CHECK (gender IN ('Men''s', 'Women''s')),
+            gender TEXT NOT NULL CHECK (gender IN ('Men', 'Women')),
             home_venue_id INTEGER NOT NULL REFERENCES venues(id) ON DELETE RESTRICT
         )
         """,
@@ -32,7 +32,7 @@ steps = [
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL CHECK (trim(name) <> ''),
             season TEXT NOT NULL CHECK (trim(season) <> ''),
-            gender TEXT NOT NULL CHECK (gender IN ('Men''s', 'Women''s'))
+            gender TEXT NOT NULL CHECK (gender IN ('Men', 'Women'))
         )
         """,
         "DROP TABLE competitions",

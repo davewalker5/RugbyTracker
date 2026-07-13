@@ -1,6 +1,56 @@
 # Version 0.2.0
 
+Version 0.2.0 introduces CSV import support, making it straightforward to populate the Rugby Tracker with existing competition data.
 
+Rather than manually entering every venue, team and fixture, data can now be imported from CSV files, allowing complete competitions to be loaded into the database quickly while maintaining referential integrity.
+
+## New Features
+
+### CSV Import
+
+Support has been added for importing:
+
+- Venues
+- Teams
+- Referees
+- Competitions
+- Matches
+
+### Intelligent Entity Mapping
+
+Match imports reference related entities by name rather than database ID. During import, the application automatically performs case-insensitive matching for:
+
+- Competition
+- Venue
+- Referee
+- Home team
+- Away team
+
+This allows CSV files to remain readable and portable while avoiding the need to know internal database identifiers.
+
+### Import Validation
+
+CSV imports are fully validated before data is written to the database. Validation includes:
+
+- Verification that referenced entities exist
+- Detection of invalid or missing references
+- Clear error reporting for failed imports
+
+This helps preserve database integrity while providing useful feedback when source data requires correction.
+
+## Technical
+
+- CSV import framework for all primary entities
+- Case-insensitive entity matching
+- Validation of foreign-key relationships during import
+- Import summary reporting
+- Improved workflow for populating new databases
+
+## Notes
+
+With CSV import now available, the Rugby Tracker can be populated efficiently from externally maintained fixture lists and competition data.
+
+The next planned release will introduce automatic league table calculation, including support for competition-specific bonus point rules and CSV export of calculated standings.
 
 ---
 

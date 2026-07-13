@@ -8,6 +8,7 @@ from typing import Any, Callable
 import streamlit as st
 
 from rugby_tracker.database import apply_migrations, connect
+from rugby_tracker.imports import IMPORT_TYPES, CsvImportService, ImportReport
 from rugby_tracker.services import GENDERS, RugbyService, ValidationError
 
 
@@ -107,7 +108,7 @@ def _entity_page(
     if records:
         st.dataframe(
             [{heading: row.get(key) for key, heading in columns.items()} for row in records],
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
     else:
@@ -258,7 +259,7 @@ def matches_page(service: RugbyService, connection: Any) -> None:
                 "Date": row["match_date"], "Competition": f"{row['competition_name']} {row['competition_season']}",
                 "Round": row["round"] or "—", "Home": row["home_team_name"], "Away": row["away_team_name"],
                 "Score": "Fixture" if row["home_score"] is None else f"{row['home_score']}–{row['away_score']}",
-            } for row in matches], use_container_width=True, hide_index=True,
+            } for row in matches], width="stretch", hide_index=True,
         )
     else:
         st.info("No matches have been recorded yet.")
@@ -332,6 +333,59 @@ def summary_page(service: RugbyService) -> None:
                 st.write(f"**{match['home_team_name']} v {match['away_team_name']}** — Fixture")
 
 
+def _show_import_report(report: ImportReport) -> None:
+    """Render counts and validation failures from a CSV import.
+
+    :param report: Completed CSV import report to display.
+    :return: None.
+    """
+    imported, skipped, invalid = st.columns(3)
+    imported.metric("Imported", report.imported)
+    skipped.metric("Duplicates skipped", report.skipped)
+    invalid.metric("Invalid rows", report.invalid)
+    if report.issues:
+        st.error("Some rows were not imported. Correct the errors below and import the file again.")
+        st.dataframe(report.error_rows(), width="stretch", hide_index=True)
+    elif report.total_rows == 0:
+        st.warning("The CSV did not contain any data rows.")
+    else:
+        st.success("CSV import completed without validation errors.")
+
+
+def import_page(connection: Any) -> None:
+    """Render CSV templates, upload controls, and import results.
+
+    :param connection: Active database connection used by the importer.
+    :return: None.
+    """
+    st.header("CSV Import")
+    st.write(
+        "Import venues, teams, competitions, referees, fixtures, and results. "
+        "Names are matched without regard to capitalisation. Invalid rows are reported and refused."
+    )
+    entity_type = st.selectbox("Record type", IMPORT_TYPES)
+    importer = CsvImportService(connection)
+    st.download_button(
+        "Download CSV template",
+        importer.template(entity_type),
+        file_name=f"rugby_tracker_{entity_type.lower()}.csv",
+        mime="text/csv",
+    )
+    if entity_type == "Teams":
+        st.caption("Home venues must already exist and are matched using the home_venue column.")
+    elif entity_type == "Matches":
+        st.caption(
+            "Competitions are matched by name and season. Venues, referees, and teams must "
+            "already exist. Referee, round, kick-off, and all result fields may be blank."
+        )
+    uploaded = st.file_uploader("CSV file", type=("csv",), key=f"csv_{entity_type}")
+    if st.button("Import CSV", type="primary", disabled=uploaded is None):
+        assert uploaded is not None
+        report = importer.import_csv(entity_type, uploaded.getvalue())
+        connection.commit()
+        _show_import_report(report)
+
+
 def main() -> None:
     """Configure and render the Rugby Tracker Streamlit application.
 
@@ -340,9 +394,35 @@ def main() -> None:
     st.set_page_config(page_title="Rugby Tracker", page_icon="🏉", layout="wide")
     apply_migrations()
     st.title("🏉 Rugby Tracker")
-    page = st.sidebar.radio(
+    st.markdown(
+        """
+        <style>
+        div[role="radiogroup"] {
+            gap: 0;
+            border-bottom: 1px solid rgba(128, 128, 128, 0.35);
+            margin-bottom: 1.25rem;
+        }
+        div[role="radiogroup"] > label {
+            padding: 0.55rem 0.9rem 0.65rem;
+            border-radius: 0.45rem 0.45rem 0 0;
+        }
+        div[role="radiogroup"] > label[data-selected="true"] {
+            background: rgba(128, 128, 128, 0.13);
+            border-bottom: 3px solid #ff4b4b;
+            margin-bottom: -1px;
+        }
+        label[data-testid="stRadioOption"] > div > div > div:first-child {
+            display: none;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    page = st.radio(
         "Navigate",
-        ("Competition Summary", "Matches", "Competitions", "Teams", "Venues", "Referees"),
+        ("Competition Summary", "Matches", "Competitions", "Teams", "Venues", "Referees", "CSV Import"),
+        horizontal=True,
+        label_visibility="collapsed",
     )
     _show_notice()
     connection = connect()
@@ -351,6 +431,7 @@ def main() -> None:
         pages = {
             "Competition Summary": lambda: summary_page(service),
             "Matches": lambda: matches_page(service, connection),
+            "CSV Import": lambda: import_page(connection),
             "Competitions": lambda: competitions_page(service, connection),
             "Teams": lambda: teams_page(service, connection),
             "Venues": lambda: venues_page(service, connection),

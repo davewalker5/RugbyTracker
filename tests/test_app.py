@@ -14,6 +14,6 @@ def test_app_starts_with_an_empty_database(monkeypatch, tmp_path):
 def test_all_pages_render_against_empty_database(monkeypatch, tmp_path):
     monkeypatch.setenv("RUGBY_TRACKER_DB", str(tmp_path / "pages.db"))
     app = AppTest.from_file("streamlit_app.py", default_timeout=10).run()
-    for page in ("Matches", "Competitions", "Teams", "Venues", "Referees"):
-        app.sidebar.radio[0].set_value(page).run()
+    for page in ("Matches", "CSV Import", "Competitions", "Teams", "Venues", "Referees"):
+        app.radio[0].set_value(page).run()
         assert not app.exception, page

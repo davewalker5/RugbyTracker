@@ -24,7 +24,7 @@ def test_foreign_keys_are_enforced(connection):
     with pytest.raises(sqlite3.IntegrityError):
         connection.execute(
             "INSERT INTO teams(name, gender, home_venue_id) VALUES (?, ?, ?)",
-            ("Nowhere RFC", "Men's", 999),
+            ("Nowhere RFC", "Men", 999),
         )
 
 
