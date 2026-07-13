@@ -4,7 +4,7 @@
 [![Language](https://img.shields.io/badge/language-python-blue.svg)](https://www.python.org)
 [![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/davewalker5/RugbyTracker)](https://github.com/davewalker5/RugbyTracker/)
 
-# Rugby Tracker
+# Rugby Tracker
 
 ## Overview
 
