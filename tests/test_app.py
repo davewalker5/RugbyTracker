@@ -130,6 +130,14 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
         competition, competition, venue, None, home, away,
     ]
     assert [field.value for field in app.text_input] == ["", "", "4", "31", "2", "17"]
+    assert [button.label for button in app.button] == ["Save", "Delete", "Clear"]
+
+    app.button[2].click().run()
+
+    assert [selector.value for selector in app.selectbox] == [
+        competition, None, None, None, None, None,
+    ]
+    assert all(field.value == "" for field in app.text_input)
 
     app.selectbox[0].set_value(later_competition).run()
 

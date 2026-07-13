@@ -132,6 +132,24 @@ def _show_notice() -> None:
         st.success(notice)
 
 
+def _form_actions(can_delete: bool) -> tuple[bool, bool, bool]:
+    """Render aligned Save, Delete, and Clear form buttons.
+
+    :param can_delete: Whether an existing record is selected and may be deleted.
+    :return: Flags indicating whether Save, Delete, or Clear was submitted.
+    """
+    save_column, delete_column, clear_column = st.columns(3)
+    with save_column:
+        save_clicked = st.form_submit_button("Save", type="primary", width="stretch")
+    with delete_column:
+        delete_clicked = st.form_submit_button(
+            "Delete", disabled=not can_delete, width="stretch"
+        )
+    with clear_column:
+        clear_clicked = st.form_submit_button("Clear", width="stretch")
+    return save_clicked, delete_clicked, clear_clicked
+
+
 def _entity_page(
     title: str,
     singular: str,
@@ -177,8 +195,10 @@ def _entity_page(
     form_record = selected["id"] if selected else "new"
     with st.form(f"{singular}_form_{form_record}", clear_on_submit=True):
         values = fields(selected) if fields else {}
-        save_clicked = st.form_submit_button("Save", type="primary")
-        delete_clicked = st.form_submit_button("Delete", disabled=selected is None)
+        save_clicked, delete_clicked, clear_clicked = _form_actions(selected is not None)
+        if clear_clicked:
+            st.session_state[f"reset_{table_key}"] = True
+            st.rerun()
         try:
             if save_clicked:
                 save(entity_id=selected["id"] if selected else None, **values)
@@ -400,8 +420,10 @@ def matches_page(service: RugbyService, connection: Any) -> None:
             away_tries = st.text_input("Away tries", value=str(selected["away_tries"]) if selected and selected["away_tries"] is not None else "")
             away_score = st.text_input("Away score", value=str(selected["away_score"]) if selected and selected["away_score"] is not None else "")
         st.caption("Leave all four try and score fields blank to save a future fixture.")
-        save_clicked = st.form_submit_button("Save", type="primary")
-        delete_clicked = st.form_submit_button("Delete", disabled=selected is None)
+        save_clicked, delete_clicked, clear_clicked = _form_actions(selected is not None)
+        if clear_clicked:
+            st.session_state[f"reset_{table_key}"] = True
+            st.rerun()
         try:
             if save_clicked:
                 service.save_match(
