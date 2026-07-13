@@ -472,6 +472,13 @@ def league_table_page(service: RugbyService) -> None:
         st.dataframe(result["table"], width="stretch", hide_index=True)
     else:
         st.info("No teams appear in this competition's fixtures yet.")
+    awarded = {
+        award: teams for award, teams in result["awards"].items() if teams
+    }
+    if result["complete"] and awarded:
+        st.subheader("Competition awards")
+        for award, teams in awarded.items():
+            st.markdown(f"**{award}:** {', '.join(teams)}")
     filename_name = "_".join(str(competition["name"]).lower().split())
     filename_season = str(competition["season"]).replace("/", "-")
     st.download_button(

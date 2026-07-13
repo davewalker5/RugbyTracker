@@ -7,7 +7,7 @@ from datetime import date, time
 from typing import Any
 
 from rugby_tracker.repositories import Repository, RugbyRepository
-from rugby_tracker.standings import RULESETS, calculate_table, table_to_csv
+from rugby_tracker.standings import RULESETS, calculate_competition, table_to_csv
 
 
 GENDERS = ("Men", "Women")
@@ -280,10 +280,16 @@ class RugbyService:
         if not ruleset:
             raise ValidationError("Select a league-table ruleset for this competition first.")
         try:
-            table = calculate_table(self.repo.list_matches(competition_id), str(ruleset))
+            calculation = calculate_competition(
+                self.repo.list_matches(competition_id), str(ruleset)
+            )
         except ValueError as error:
             raise ValidationError(str(error)) from error
-        return {"competition": competition, "table": table, "ruleset": RULESETS[str(ruleset)]}
+        return {
+            "competition": competition,
+            "ruleset": RULESETS[str(ruleset)],
+            **calculation,
+        }
 
     def league_table_csv(self, competition_id: int) -> str:
         """Export a freshly calculated competition table as CSV text.

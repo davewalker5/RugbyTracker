@@ -1,0 +1,16 @@
+competition,season,round,venue,referee,date,kickoff_time,home_team,away_team,home_tries,away_tries,home_score,away_score
+M6N,2026,1,Stade de France,Karl Dickson,2026-02-05,20:10,France,Ireland,5,2,36,14
+M6N,2026,1,Stadio Olimpico,Ben O'Keeffe,2026-02-07,14:10,Italy,Scotland,2,0,18,15
+M6N,2026,1,Allianz Stadium,Pierre Brousset,2026-02-07,16:40,England,Wales,7,1,48,7
+M6N,2026,2,Aviva Stadium,Hollie Davidson,2026-02-14,14:10,Ireland,Italy,2,1,20,13
+M6N,2026,2,Murrayfield,Matthew Carley,2026-02-14,16:40,Scotland,England,4,2,31,20
+M6N,2026,2,Principality Stadium,Andrea Piardi,2026-02-15,15:10,Wales,France,2,8,12,54
+M6N,2026,3,Allianz Stadium,Angus Gardner,2026-02-21,14:10,England,Ireland,3,6,21,42
+M6N,2026,3,Principality Stadium,Nika Amashukeli,2026-02-21,16:40,Wales,Scotland,2,4,23,26
+M6N,2026,3,Stade Pierre-Mauroy,Luc Ramos,2026-02-22,15:10,France,Italy,5,1,33,8
+M6N,2026,4,Aviva Stadium,James Doleman,2026-03-06,20:10,Ireland,Wales,3,2,27,17
+M6N,2026,4,Murrayfield,Christophe Ridley,2026-03-07,14:10,Scotland,France,7,6,50,40
+M6N,2026,4,Stadio Olimpico,Luc Ramos,2026-03-07,16:40,Italy,England,2,2,23,18
+M6N,2026,5,Aviva Stadium,Luke Pearce,2026-03-14,14:10,Ireland,Scotland,6,3,43,21
+M6N,2026,5,Principality Stadium,Christophe Ridley,2026-03-14,16:40,Wales,Italy,4,2,31,17
+M6N,2026,5,Stade de France,Nika Amashukeli,2026-03-14,20:10,France,England,6,7,48,46
