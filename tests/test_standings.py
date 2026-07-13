@@ -18,6 +18,7 @@ def match(
     away_score,
     home_tries,
     away_tries,
+    round_name=None,
 ):
     return {
         "home_team_id": home_id,
@@ -28,6 +29,7 @@ def match(
         "away_score": away_score,
         "home_tries": home_tries,
         "away_tries": away_tries,
+        "round": round_name,
     }
 
 
@@ -71,6 +73,36 @@ def test_future_fixture_includes_teams_without_affecting_values():
     )
     assert [row["Team"] for row in table] == ["Alpha", "Bravo"]
     assert all(row["P"] == 0 and row["Pts"] == 0 for row in table)
+
+
+@pytest.mark.parametrize("round_name", ("Quarter-Final", "Semi-Final", "Final", "semi-final"))
+@pytest.mark.parametrize("ruleset", ("prem_2025_26", "pwr_2025_26"))
+def test_knockout_rounds_are_excluded_from_league_tables(round_name, ruleset):
+    regular = match(1, "Alpha", 2, "Bravo", 20, 10, 3, 1, "Round 18")
+    knockout = match(2, "Bravo", 1, "Alpha", 50, 0, 7, 0, round_name)
+    table = calculate_table([regular, knockout], ruleset)
+    by_team = {row["Team"]: row for row in table}
+
+    assert by_team["Alpha"]["P"] == 1
+    assert by_team["Alpha"]["Pts"] == 4
+    assert by_team["Alpha"]["PD"] == 10
+    assert by_team["Bravo"]["P"] == 1
+    assert by_team["Bravo"]["Pts"] == 0
+
+
+def test_table_ranks_by_points_then_points_difference_not_wins():
+    matches = [
+        match(1, "One Win", 2, "Opponent B", 10, 9, 0, 0),
+        match(3, "Opponent D", 1, "One Win", 100, 0, 0, 0),
+        match(4, "No Wins", 5, "Opponent E", 3, 3, 0, 0),
+        match(4, "No Wins", 6, "Opponent F", 6, 6, 0, 0),
+    ]
+    table = calculate_table(matches, "prem_2025_26")
+    positions = {row["Team"]: row["Pos"] for row in table}
+
+    assert next(row for row in table if row["Team"] == "One Win")["Pts"] == 4
+    assert next(row for row in table if row["Team"] == "No Wins")["Pts"] == 4
+    assert positions["No Wins"] < positions["One Win"]
 
 
 def test_2025_26_rulesets_have_independent_identifiers_and_currently_same_result():

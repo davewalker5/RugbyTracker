@@ -285,7 +285,11 @@ def matches_page(service: RugbyService, connection: Any) -> None:
     )
     with st.form("match_form"):
         competition_id = _select("Competition *", _options(competitions, lambda r: f"{r['name']} — {r['season']}"), selected["competition_id"] if selected else None)
-        round_name = st.text_input("Round", value=(selected["round"] or "") if selected else "")
+        round_name = st.text_input(
+            "Round",
+            value=(selected["round"] or "") if selected else "",
+            placeholder="e.g. 1, Quarter-Final, Semi-Final, or Final",
+        )
         match_date = st.date_input("Date *", value=date.fromisoformat(selected["match_date"]) if selected else date.today())
         kickoff = st.text_input("Kick-off time", value=(selected["kickoff_time"] or "") if selected else "", placeholder="15:00")
         venue_id = _select("Venue *", _options(venues), selected["venue_id"] if selected else None)
@@ -429,7 +433,8 @@ def import_page(connection: Any) -> None:
     elif entity_type == "Matches":
         st.caption(
             "Competitions are matched by name and season. Venues, referees, and teams must "
-            "already exist. Referee, round, kick-off, and all result fields may be blank."
+            "already exist. Round may be a number or text such as Quarter-Final, Semi-Final, "
+            "or Final. Referee, round, kick-off, and all result fields may be blank."
         )
     uploaded = st.file_uploader("CSV file", type=("csv",), key=f"csv_{entity_type}")
     if st.button("Import CSV", type="primary", disabled=uploaded is None):

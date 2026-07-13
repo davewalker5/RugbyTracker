@@ -57,16 +57,18 @@ def test_venue_import_supports_optional_fields_and_skips_duplicates(connection):
 def test_match_import_resolves_names_and_supports_fixtures_and_results(service, core_records, connection):
     importer = CsvImportService(connection)
     content = """competition,season,round,venue,referee,date,kick-off time,home team,away team,home tries,away tries,home score,away score
-premiership rugby,2025/26,Round 1,THE REC,luke pearce,2025-09-20,15:00,bath,LEICESTER TIGERS,4,2,31,17
-Premiership Rugby,2025/26,Round 2,Welford Road,,2025-09-27,,Leicester Tigers,Bath,,,,
+premiership rugby,2025/26,Semi-Final,THE REC,luke pearce,2025-09-20,15:00,bath,LEICESTER TIGERS,4,2,31,17
+Premiership Rugby,2025/26,Final,Welford Road,,2025-09-27,,Leicester Tigers,Bath,,,,
 """
     report = importer.import_csv("Matches", content)
     connection.commit()
     assert (report.total_rows, report.imported, report.skipped, report.invalid) == (2, 2, 0, 0)
     matches = service.list_matches(core_records["competition"])
     assert matches[0]["referee_name"] == "Luke Pearce"
+    assert matches[0]["round"] == "Semi-Final"
     assert matches[0]["home_score"] == 31
     assert matches[1]["referee_id"] is None
+    assert matches[1]["round"] == "Final"
     assert matches[1]["home_score"] is None
 
     repeated = importer.import_csv("Matches", content)

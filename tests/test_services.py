@@ -93,3 +93,17 @@ def test_unreferenced_record_can_be_deleted(service):
     referee_id = service.save_referee(name="Temporary Official")
     service.delete("referee", referee_id)
     assert service.list_referees() == []
+
+
+@pytest.mark.parametrize("round_name", ("1", "Quarter-Final", "Semi-Final", "Final"))
+def test_match_round_supports_numbers_and_knockout_names(service, core_records, round_name):
+    service.save_match(
+        competition_id=core_records["competition"],
+        round=round_name,
+        venue_id=core_records["venue"],
+        match_date="2026-05-01",
+        home_team_id=core_records["home"],
+        away_team_id=core_records["away"],
+    )
+    summary = service.competition_summary(core_records["competition"])
+    assert summary["rounds"][0]["name"] == round_name
