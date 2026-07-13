@@ -17,6 +17,13 @@ class ValidationError(ValueError):
 
 
 def required_text(value: Any, label: str) -> str:
+    """Normalise a mandatory text value.
+
+    :param value: Candidate value supplied by the user.
+    :param label: User-facing field label used in validation messages.
+    :return: The stripped, non-empty text.
+    :raises ValidationError: If the value is empty.
+    """
     cleaned = str(value).strip() if value is not None else ""
     if not cleaned:
         raise ValidationError(f"{label} is required.")
@@ -24,17 +31,35 @@ def required_text(value: Any, label: str) -> str:
 
 
 def optional_text(value: Any) -> str | None:
+    """Normalise an optional text value.
+
+    :param value: Candidate value supplied by the user.
+    :return: Stripped text, or ``None`` when the value is empty.
+    """
     cleaned = str(value).strip() if value is not None else ""
     return cleaned or None
 
 
 def valid_gender(value: Any) -> str:
+    """Validate a competition or team category.
+
+    :param value: Candidate category supplied by the user.
+    :return: The validated category.
+    :raises ValidationError: If the category is unsupported.
+    """
     if value not in GENDERS:
         raise ValidationError("Category must be Men's or Women's.")
     return str(value)
 
 
 def non_negative(value: Any, label: str) -> int:
+    """Convert a value to a non-negative whole number.
+
+    :param value: Candidate numeric value supplied by the user.
+    :param label: User-facing field label used in validation messages.
+    :return: The validated integer.
+    :raises ValidationError: If the value is not a non-negative whole number.
+    """
     if isinstance(value, bool):
         raise ValidationError(f"{label} must be a whole number of zero or more.")
     try:
@@ -47,13 +72,30 @@ def non_negative(value: Any, label: str) -> int:
 
 
 class RugbyService:
+    """Validate inputs and coordinate Rugby Tracker data operations."""
+
     def __init__(self, connection: sqlite3.Connection):
+        """Initialise the service over an open database connection.
+
+        :param connection: Open SQLite connection for the current transaction.
+        :return: None.
+        """
         self.repo = RugbyRepository(connection)
 
     def list_venues(self) -> list[dict[str, Any]]:
+        """List all venues.
+
+        :return: Venue rows represented as dictionaries.
+        """
         return self.repo.venues.list_all()
 
     def save_venue(self, entity_id: int | None = None, **values: Any) -> int:
+        """Create or update a venue after validating its fields.
+
+        :param entity_id: Existing venue identifier, or ``None`` to create one.
+        :param values: Venue fields including name, town/city, and country.
+        :return: The saved venue's identifier.
+        """
         data = {
             "name": required_text(values.get("name"), "Venue name"),
             "town_city": optional_text(values.get("town_city")),
@@ -62,9 +104,19 @@ class RugbyService:
         return self._save(self.repo.venues, entity_id, data)
 
     def list_teams(self) -> list[dict[str, Any]]:
+        """List all teams.
+
+        :return: Team rows represented as dictionaries.
+        """
         return self.repo.teams.list_all()
 
     def save_team(self, entity_id: int | None = None, **values: Any) -> int:
+        """Create or update a team after validating its fields.
+
+        :param entity_id: Existing team identifier, or ``None`` to create one.
+        :param values: Team fields including name, category, and home venue.
+        :return: The saved team's identifier.
+        """
         name = required_text(values.get("name"), "Team name")
         gender = valid_gender(values.get("gender"))
         venue_id = self._foreign_key(self.repo.venues, values.get("home_venue_id"), "Home venue")
@@ -76,9 +128,19 @@ class RugbyService:
         return self._save(self.repo.teams, entity_id, data)
 
     def list_competitions(self) -> list[dict[str, Any]]:
+        """List all competitions.
+
+        :return: Competition rows represented as dictionaries.
+        """
         return self.repo.competitions.list_all()
 
     def save_competition(self, entity_id: int | None = None, **values: Any) -> int:
+        """Create or update a competition after validating its fields.
+
+        :param entity_id: Existing competition identifier, or ``None`` to create one.
+        :param values: Competition fields including name, season, and category.
+        :return: The saved competition's identifier.
+        """
         data = {
             "name": required_text(values.get("name"), "Competition name"),
             "season": required_text(values.get("season"), "Season"),
@@ -87,9 +149,19 @@ class RugbyService:
         return self._save(self.repo.competitions, entity_id, data)
 
     def list_referees(self) -> list[dict[str, Any]]:
+        """List all referees.
+
+        :return: Referee rows represented as dictionaries.
+        """
         return self.repo.referees.list_all()
 
     def save_referee(self, entity_id: int | None = None, **values: Any) -> int:
+        """Create or update a referee after validating the name.
+
+        :param entity_id: Existing referee identifier, or ``None`` to create one.
+        :param values: Referee fields, including the mandatory name.
+        :return: The saved referee's identifier.
+        """
         return self._save(
             self.repo.referees,
             entity_id,
@@ -97,9 +169,21 @@ class RugbyService:
         )
 
     def list_matches(self, competition_id: int | None = None) -> list[dict[str, Any]]:
+        """List enriched match records in fixture order.
+
+        :param competition_id: Optional competition identifier used to filter matches.
+        :return: Match rows with related entity names.
+        """
         return self.repo.list_matches(competition_id)
 
     def save_match(self, entity_id: int | None = None, **values: Any) -> int:
+        """Create or update a fixture or result after full validation.
+
+        :param entity_id: Existing match identifier, or ``None`` to create one.
+        :param values: Match fields and referenced entity identifiers.
+        :return: The saved match's identifier.
+        :raises ValidationError: If required, reference, date, time, or score data is invalid.
+        """
         competition_id = self._foreign_key(
             self.repo.competitions, values.get("competition_id"), "Competition"
         )
@@ -139,6 +223,13 @@ class RugbyService:
         return self._save(self.repo.matches, entity_id, data)
 
     def delete(self, entity: str, entity_id: int) -> None:
+        """Delete an entity while protecting referenced records.
+
+        :param entity: Singular entity type handled by the service.
+        :param entity_id: Primary-key identifier to delete.
+        :return: None.
+        :raises ValidationError: If another record references the entity.
+        """
         repositories = {
             "venue": self.repo.venues,
             "team": self.repo.teams,
@@ -158,6 +249,12 @@ class RugbyService:
             ) from error
 
     def competition_summary(self, competition_id: int) -> dict[str, Any]:
+        """Build a competition summary grouped by first-seen round order.
+
+        :param competition_id: Competition identifier to summarise.
+        :return: Competition details, ordered round groups, and enriched matches.
+        :raises ValidationError: If the competition does not exist.
+        """
         competition = self.repo.competitions.get(competition_id)
         if competition is None:
             raise ValidationError("Select a valid competition.")
@@ -176,6 +273,14 @@ class RugbyService:
 
     @staticmethod
     def _save(repository: Repository, entity_id: int | None, data: dict[str, Any]) -> int:
+        """Persist validated entity data through a repository.
+
+        :param repository: Entity repository used for persistence.
+        :param entity_id: Existing identifier, or ``None`` for an insert.
+        :param data: Validated column values to persist.
+        :return: The inserted or updated entity identifier.
+        :raises ValidationError: If database integrity validation fails.
+        """
         try:
             if entity_id is None:
                 return repository.insert(data)
@@ -186,6 +291,14 @@ class RugbyService:
 
     @staticmethod
     def _foreign_key(repository: Repository, value: Any, label: str) -> int:
+        """Validate and return a referenced entity identifier.
+
+        :param repository: Repository containing the referenced entity.
+        :param value: Candidate identifier supplied by the user.
+        :param label: User-facing field label used in validation messages.
+        :return: The validated identifier.
+        :raises ValidationError: If the identifier is absent or unknown.
+        """
         try:
             entity_id = int(value)
         except (TypeError, ValueError) as error:
@@ -196,6 +309,12 @@ class RugbyService:
 
     @staticmethod
     def _date_value(value: Any) -> str:
+        """Normalise a date value to ISO format.
+
+        :param value: A date object or ISO-formatted date string.
+        :return: The date in ``YYYY-MM-DD`` format.
+        :raises ValidationError: If the value is missing or invalid.
+        """
         if isinstance(value, date):
             return value.isoformat()
         try:
@@ -205,6 +324,12 @@ class RugbyService:
 
     @staticmethod
     def _time_value(value: Any) -> str | None:
+        """Normalise an optional kick-off time.
+
+        :param value: A time object, time string, or empty value.
+        :return: Time in ``HH:MM`` format, or ``None`` when omitted.
+        :raises ValidationError: If a supplied time is invalid.
+        """
         if value in (None, ""):
             return None
         if isinstance(value, time):
@@ -216,6 +341,11 @@ class RugbyService:
 
     @staticmethod
     def _outcome(match: dict[str, Any]) -> dict[str, Any]:
+        """Derive winner, loser, and draw fields for a match.
+
+        :param match: Enriched match row containing team names and scores.
+        :return: Derived outcome fields without persisting them.
+        """
         if match["home_score"] is None:
             return {"winner": None, "loser": None, "is_draw": False}
         if match["home_score"] == match["away_score"]:

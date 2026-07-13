@@ -11,7 +11,11 @@ from rugby_tracker.config import database_path, migrations_path
 
 
 def connect(path: Path | str | None = None) -> sqlite3.Connection:
-    """Open a configured connection with integrity checks enabled."""
+    """Open a configured connection with integrity checks enabled.
+
+    :param path: Optional database path; the configured path is used when omitted.
+    :return: An open SQLite connection whose rows support name-based access.
+    """
     target = Path(path) if path is not None else database_path()
     target.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(target)
@@ -22,6 +26,11 @@ def connect(path: Path | str | None = None) -> sqlite3.Connection:
 
 @contextmanager
 def session(path: Path | str | None = None) -> Iterator[sqlite3.Connection]:
+    """Provide a transaction that commits or rolls back automatically.
+
+    :param path: Optional database path; the configured path is used when omitted.
+    :return: An iterator yielding one open SQLite connection.
+    """
     connection = connect(path)
     try:
         yield connection
@@ -34,7 +43,11 @@ def session(path: Path | str | None = None) -> Iterator[sqlite3.Connection]:
 
 
 def apply_migrations(path: Path | str | None = None) -> None:
-    """Apply all pending yoyo migrations to the selected database."""
+    """Apply all pending yoyo migrations to the selected database.
+
+    :param path: Optional database path; the configured path is used when omitted.
+    :return: None.
+    """
     from yoyo import get_backend, read_migrations
 
     target = Path(path) if path is not None else database_path()

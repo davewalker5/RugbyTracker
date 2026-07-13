@@ -12,11 +12,25 @@ from rugby_tracker.services import GENDERS, RugbyService, ValidationError
 
 
 def _options(records: list[dict[str, Any]], label: Callable[[dict[str, Any]], str] | None = None) -> dict[int, str]:
+    """Convert entity rows to identifier and display-label options.
+
+    :param records: Entity rows containing at least ``id`` and ``name``.
+    :param label: Optional formatter used to produce each display label.
+    :return: Mapping of entity identifiers to display labels.
+    """
     formatter = label or (lambda row: row["name"])
     return {row["id"]: formatter(row) for row in records}
 
 
 def _select(label: str, options: dict[int, str], value: int | None = None, optional: bool = False) -> int | None:
+    """Render an entity selection widget.
+
+    :param label: User-facing widget label.
+    :param options: Mapping of entity identifiers to display labels.
+    :param value: Identifier selected initially, when present.
+    :param optional: Whether to include an empty selection.
+    :return: The selected identifier, or ``None`` for an optional empty value.
+    """
     keys: list[int | None] = ([None] if optional else []) + list(options)
     index = keys.index(value) if value in keys else 0
     return st.selectbox(
@@ -28,6 +42,13 @@ def _select(label: str, options: dict[int, str], value: int | None = None, optio
 
 
 def _record_picker(label: str, records: list[dict[str, Any]], display: Callable[[dict[str, Any]], str]) -> dict[str, Any] | None:
+    """Render a picker for adding a record or editing an existing one.
+
+    :param label: User-facing widget label.
+    :param records: Existing entity rows available for editing.
+    :param display: Formatter used to label each existing record.
+    :return: The selected record, or ``None`` when adding a new one.
+    """
     by_id = {row["id"]: row for row in records}
     selected = st.selectbox(
         label,
@@ -38,12 +59,22 @@ def _record_picker(label: str, records: list[dict[str, Any]], display: Callable[
 
 
 def _finish_action(connection: Any, message: str) -> None:
+    """Commit a UI action, queue a notice, and refresh the page.
+
+    :param connection: Active database connection to commit.
+    :param message: Success notice to display after refreshing.
+    :return: None.
+    """
     connection.commit()
     st.session_state["notice"] = message
     st.rerun()
 
 
 def _show_notice() -> None:
+    """Display and remove the queued success notice, when present.
+
+    :return: None.
+    """
     if notice := st.session_state.pop("notice", None):
         st.success(notice)
 
@@ -59,6 +90,19 @@ def _entity_page(
     columns: dict[str, str],
     connection: Any,
 ) -> None:
+    """Render a reusable list and CRUD form for a reference entity.
+
+    :param title: Plural page heading.
+    :param singular: Singular entity name used in form labels and messages.
+    :param records: Existing entity rows to display and edit.
+    :param display: Formatter used by the record picker.
+    :param fields: Form builder returning values to save.
+    :param save: Callback that creates or updates an entity.
+    :param delete: Callback that deletes an entity by identifier.
+    :param columns: Mapping of record keys to table headings.
+    :param connection: Active database connection for commits.
+    :return: None.
+    """
     st.header(title)
     if records:
         st.dataframe(
@@ -87,9 +131,20 @@ def _entity_page(
 
 
 def venues_page(service: RugbyService, connection: Any) -> None:
+    """Render the venue CRUD page.
+
+    :param service: Business service used for venue operations.
+    :param connection: Active database connection for commits.
+    :return: None.
+    """
     records = service.list_venues()
 
     def fields(row: dict[str, Any] | None) -> dict[str, Any]:
+        """Render venue fields and collect their values.
+
+        :param row: Existing venue row, or ``None`` for a new venue.
+        :return: Values entered in the venue form.
+        """
         return {
             "name": st.text_input("Name *", value=row["name"] if row else ""),
             "town_city": st.text_input("Town/City", value=(row["town_city"] or "") if row else ""),
@@ -102,6 +157,12 @@ def venues_page(service: RugbyService, connection: Any) -> None:
 
 
 def teams_page(service: RugbyService, connection: Any) -> None:
+    """Render the team CRUD page.
+
+    :param service: Business service used for team operations.
+    :param connection: Active database connection for commits.
+    :return: None.
+    """
     records, venues = service.list_teams(), service.list_venues()
     venue_options = _options(venues)
     venue_names = {row["id"]: row["name"] for row in venues}
@@ -111,6 +172,11 @@ def teams_page(service: RugbyService, connection: Any) -> None:
         return
 
     def fields(row: dict[str, Any] | None) -> dict[str, Any]:
+        """Render team fields and collect their values.
+
+        :param row: Existing team row, or ``None`` for a new team.
+        :return: Values entered in the team form.
+        """
         return {
             "name": st.text_input("Name *", value=row["name"] if row else ""),
             "gender": st.selectbox("Category *", GENDERS, index=GENDERS.index(row["gender"]) if row else 0),
@@ -124,9 +190,20 @@ def teams_page(service: RugbyService, connection: Any) -> None:
 
 
 def competitions_page(service: RugbyService, connection: Any) -> None:
+    """Render the competition CRUD page.
+
+    :param service: Business service used for competition operations.
+    :param connection: Active database connection for commits.
+    :return: None.
+    """
     records = service.list_competitions()
 
     def fields(row: dict[str, Any] | None) -> dict[str, Any]:
+        """Render competition fields and collect their values.
+
+        :param row: Existing competition row, or ``None`` for a new competition.
+        :return: Values entered in the competition form.
+        """
         return {
             "name": st.text_input("Name *", value=row["name"] if row else ""),
             "season": st.text_input("Season *", value=row["season"] if row else "", placeholder="2025/26"),
@@ -140,9 +217,20 @@ def competitions_page(service: RugbyService, connection: Any) -> None:
 
 
 def referees_page(service: RugbyService, connection: Any) -> None:
+    """Render the referee CRUD page.
+
+    :param service: Business service used for referee operations.
+    :param connection: Active database connection for commits.
+    :return: None.
+    """
     records = service.list_referees()
 
     def fields(row: dict[str, Any] | None) -> dict[str, Any]:
+        """Render the referee name field and collect its value.
+
+        :param row: Existing referee row, or ``None`` for a new referee.
+        :return: Values entered in the referee form.
+        """
         return {"name": st.text_input("Name *", value=row["name"] if row else "")}
 
     _entity_page("Referees", "referee", records, lambda row: row["name"], fields, service.save_referee,
@@ -150,6 +238,12 @@ def referees_page(service: RugbyService, connection: Any) -> None:
 
 
 def matches_page(service: RugbyService, connection: Any) -> None:
+    """Render the match CRUD page for fixtures and results.
+
+    :param service: Business service used for match operations.
+    :param connection: Active database connection for commits.
+    :return: None.
+    """
     matches = service.list_matches()
     competitions, venues = service.list_competitions(), service.list_venues()
     teams, referees = service.list_teams(), service.list_referees()
@@ -209,6 +303,11 @@ def matches_page(service: RugbyService, connection: Any) -> None:
 
 
 def summary_page(service: RugbyService) -> None:
+    """Render fixtures and results grouped by competition round.
+
+    :param service: Business service used to build competition summaries.
+    :return: None.
+    """
     st.header("Competition Summary")
     competitions = service.list_competitions()
     if not competitions:
@@ -234,6 +333,10 @@ def summary_page(service: RugbyService) -> None:
 
 
 def main() -> None:
+    """Configure and render the Rugby Tracker Streamlit application.
+
+    :return: None.
+    """
     st.set_page_config(page_title="Rugby Tracker", page_icon="🏉", layout="wide")
     apply_migrations()
     st.title("🏉 Rugby Tracker")
