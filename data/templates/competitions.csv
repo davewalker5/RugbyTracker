@@ -1,3 +1,3 @@
-name,season,gender
-PWR,2025/26,Women
-PREM,2025/26,Men
+name,season,gender,ruleset
+PWR,2025/26,Women,pwr_2025_26
+PREM,2025/26,Men,prem_2025_26

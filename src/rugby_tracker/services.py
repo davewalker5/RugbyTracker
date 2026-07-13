@@ -7,6 +7,7 @@ from datetime import date, time
 from typing import Any
 
 from rugby_tracker.repositories import Repository, RugbyRepository
+from rugby_tracker.standings import RULESETS, calculate_table, table_to_csv
 
 
 GENDERS = ("Men", "Women")
@@ -69,6 +70,22 @@ def non_negative(value: Any, label: str) -> int:
     if number < 0 or (isinstance(value, float) and not value.is_integer()):
         raise ValidationError(f"{label} must be a whole number of zero or more.")
     return number
+
+
+def valid_ruleset(value: Any) -> str | None:
+    """Validate an optional league-table ruleset identifier.
+
+    :param value: Candidate identifier supplied by the user or an import.
+    :return: Canonical identifier, or ``None`` when no ruleset is selected.
+    :raises ValidationError: If the identifier is unsupported.
+    """
+    candidate = optional_text(value)
+    if candidate is None:
+        return None
+    for identifier, ruleset in RULESETS.items():
+        if candidate.casefold() in {identifier.casefold(), ruleset.label.casefold()}:
+            return identifier
+    raise ValidationError("Select a valid league-table ruleset.")
 
 
 class RugbyService:
@@ -145,6 +162,7 @@ class RugbyService:
             "name": required_text(values.get("name"), "Competition name"),
             "season": required_text(values.get("season"), "Season"),
             "gender": valid_gender(values.get("gender")),
+            "ruleset": valid_ruleset(values.get("ruleset")),
         }
         return self._save(self.repo.competitions, entity_id, data)
 
@@ -270,6 +288,33 @@ class RugbyService:
             match.update(self._outcome(match))
             by_name[name]["matches"].append(match)
         return {"competition": competition, "rounds": rounds, "matches": matches}
+
+    def league_table(self, competition_id: int) -> dict[str, Any]:
+        """Calculate the current table for a competition.
+
+        :param competition_id: Competition identifier to calculate.
+        :return: Competition details and calculated, ordered table rows.
+        :raises ValidationError: If the competition is missing or has no ruleset.
+        """
+        competition = self.repo.competitions.get(competition_id)
+        if competition is None:
+            raise ValidationError("Select a valid competition.")
+        ruleset = competition.get("ruleset")
+        if not ruleset:
+            raise ValidationError("Select a league-table ruleset for this competition first.")
+        try:
+            table = calculate_table(self.repo.list_matches(competition_id), str(ruleset))
+        except ValueError as error:
+            raise ValidationError(str(error)) from error
+        return {"competition": competition, "table": table, "ruleset": RULESETS[str(ruleset)]}
+
+    def league_table_csv(self, competition_id: int) -> str:
+        """Export a freshly calculated competition table as CSV text.
+
+        :param competition_id: Competition identifier to calculate and export.
+        :return: CSV text containing the current league table.
+        """
+        return table_to_csv(self.league_table(competition_id)["table"])
 
     @staticmethod
     def _save(repository: Repository, entity_id: int | None, data: dict[str, Any]) -> int:

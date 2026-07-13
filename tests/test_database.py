@@ -11,6 +11,13 @@ from rugby_tracker.database import apply_migrations, connect
 def test_database_is_empty_after_first_migration(connection):
     for table in ("venues", "teams", "competitions", "referees", "matches"):
         assert connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == 0
+    competition_columns = {
+        row["name"] for row in connection.execute("PRAGMA table_info(competitions)").fetchall()
+    }
+    assert "ruleset" in competition_columns
+    assert connection.execute(
+        "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'standings'"
+    ).fetchone()[0] == 0
 
 
 def test_migrations_are_repeatable(database):

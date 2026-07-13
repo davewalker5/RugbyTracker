@@ -113,6 +113,22 @@ Six Nations,2026,Women
     assert len(importer.rugby.list_competitions()) == 1
 
 
+def test_competition_import_accepts_ruleset_identifier_or_label(connection):
+    importer = CsvImportService(connection)
+    report = importer.import_csv(
+        "Competitions",
+        """name,season,gender,ruleset
+PREM,2025/26,Men,prem_2025_26
+PWR,2025/26,Women,Premiership Women's Rugby (2025/26)
+Unknown,2025/26,Men,not_a_ruleset
+""",
+    )
+    assert (report.imported, report.invalid) == (2, 1)
+    competitions = importer.rugby.list_competitions()
+    assert {row["ruleset"] for row in competitions} == {"prem_2025_26", "pwr_2025_26"}
+    assert "valid league-table ruleset" in report.issues[0].messages[0]
+
+
 def test_match_import_reports_every_missing_reference_and_bad_result(connection):
     importer = CsvImportService(connection)
     content = """competition,season,venue,date,home_team,away_team,home_tries,away_tries,home_score,away_score,referee

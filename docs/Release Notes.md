@@ -1,3 +1,72 @@
+# Version 0.3.0
+
+Version 0.3.0 introduces automatic league table calculation, allowing the Rugby Tracker to derive competition standings directly from recorded match results.
+
+Competition tables are calculated dynamically rather than being stored in the database, ensuring that standings always reflect the current set of recorded fixtures and scores.
+
+The release also introduces support for competition-specific rules, providing a foundation for handling the differing bonus point systems used by rugby competitions.
+
+## New Features
+
+### Automatic League Table Calculation
+
+League standings are now calculated automatically from recorded match results.
+
+The following statistics are calculated for every team:
+
+- Played (P)
+- Won (W)
+- Drawn (D)
+- Lost (L)
+- Points For (PF)
+- Points Against (PA)
+- Points Difference (PD)
+- Try Bonus Points (TBP)
+- Losing Bonus Points (LBP)
+- Total Bonus Points (BP)
+- League Points (Pts)
+
+Tables are generated on demand, ensuring they always remain consistent with the recorded results.
+
+### Competition Rules
+
+Support has been added for competition-specific league rules.
+
+The initial release includes rulesets for:
+
+- Premiership Rugby (2025/26)
+- Premiership Women's Rugby (2025/26)
+
+This framework allows additional competitions to be supported in future releases while keeping the calculation logic separate from the underlying data.
+
+### CSV Export
+
+Calculated league tables can now be exported to CSV for use in spreadsheets, reports or further analysis.
+
+## Technical
+
+- Dynamic league table calculation
+- Competition-specific scoring rules
+- Automatic calculation of bonus points
+- CSV export of calculated standings
+- Separation of competition rules from the core table calculation logic
+
+## Notes
+
+Version 0.3.0 completes the core functionality originally planned for the Rugby Tracker.
+
+The application now supports the complete workflow:
+
+1. Record reference data
+2. Import competitions and fixtures from CSV
+3. Record match results
+4. Automatically calculate league tables
+5. Export standings for further analysis
+
+Future development may extend the tracker to support additional competition formats, knockout stages, player statistics and richer match information.
+
+---
+
 # Version 0.2.0
 
 Version 0.2.0 introduces CSV import support, making it straightforward to populate the Rugby Tracker with existing competition data.

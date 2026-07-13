@@ -16,6 +16,7 @@ from rugby_tracker.services import (
     non_negative,
     optional_text,
     required_text,
+    valid_ruleset,
 )
 
 
@@ -24,7 +25,7 @@ IMPORT_TYPES = ("Venues", "Teams", "Competitions", "Referees", "Matches")
 TEMPLATE_HEADERS = {
     "Venues": ("name", "town_city", "country"),
     "Teams": ("name", "gender", "home_venue"),
-    "Competitions": ("name", "season", "gender"),
+    "Competitions": ("name", "season", "gender", "ruleset"),
     "Referees": ("name",),
     "Matches": (
         "competition", "season", "round", "venue", "referee", "date", "kickoff_time",
@@ -260,9 +261,15 @@ class CsvImportService:
         name = self._value(lambda: required_text(row.get("name"), "Competition name"), messages)
         season = self._value(lambda: required_text(row.get("season"), "Season"), messages)
         gender = self._value(lambda: self._gender(row.get("gender")), messages)
+        ruleset = self._value(lambda: valid_ruleset(row.get("ruleset")), messages)
         if messages:
             return None, messages
-        return {"name": name, "season": season, "gender": gender}, messages
+        return {
+            "name": name,
+            "season": season,
+            "gender": gender,
+            "ruleset": ruleset,
+        }, messages
 
     def _validate_referee(self, row: dict[str, str]) -> tuple[dict[str, Any] | None, list[str]]:
         """Validate one referee import row.

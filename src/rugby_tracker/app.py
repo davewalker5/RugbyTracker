@@ -10,6 +10,7 @@ import streamlit as st
 from rugby_tracker.database import apply_migrations, connect
 from rugby_tracker.imports import IMPORT_TYPES, CsvImportService, ImportReport
 from rugby_tracker.services import GENDERS, RugbyService, ValidationError
+from rugby_tracker.standings import RULESETS
 
 
 def _options(records: list[dict[str, Any]], label: Callable[[dict[str, Any]], str] | None = None) -> dict[int, str]:
@@ -198,6 +199,7 @@ def competitions_page(service: RugbyService, connection: Any) -> None:
     :return: None.
     """
     records = service.list_competitions()
+    ruleset_options: list[str | None] = [None, *RULESETS]
 
     def fields(row: dict[str, Any] | None) -> dict[str, Any]:
         """Render competition fields and collect their values.
@@ -209,12 +211,25 @@ def competitions_page(service: RugbyService, connection: Any) -> None:
             "name": st.text_input("Name *", value=row["name"] if row else ""),
             "season": st.text_input("Season *", value=row["season"] if row else "", placeholder="2025/26"),
             "gender": st.selectbox("Category *", GENDERS, index=GENDERS.index(row["gender"]) if row else 0),
+            "ruleset": st.selectbox(
+                "League-table ruleset",
+                ruleset_options,
+                index=ruleset_options.index(row["ruleset"]) if row and row["ruleset"] in ruleset_options else 0,
+                format_func=lambda value: "No league table" if value is None else RULESETS[value].label,
+            ),
         }
 
-    _entity_page("Competitions", "competition", records,
+    display_rows = [
+        {
+            **row,
+            "ruleset_label": RULESETS[row["ruleset"]].label if row.get("ruleset") in RULESETS else "—",
+        }
+        for row in records
+    ]
+    _entity_page("Competitions", "competition", display_rows,
                  lambda row: f"{row['name']} — {row['season']}", fields, service.save_competition,
                  lambda entity_id: service.delete("competition", entity_id),
-                 {"name": "Name", "season": "Season", "gender": "Category"}, connection)
+                 {"name": "Name", "season": "Season", "gender": "Category", "ruleset_label": "Ruleset"}, connection)
 
 
 def referees_page(service: RugbyService, connection: Any) -> None:
@@ -333,6 +348,44 @@ def summary_page(service: RugbyService) -> None:
                 st.write(f"**{match['home_team_name']} v {match['away_team_name']}** — Fixture")
 
 
+def league_table_page(service: RugbyService) -> None:
+    """Render and offer CSV export for a calculated competition table.
+
+    :param service: Business service used to calculate and export standings.
+    :return: None.
+    """
+    st.header("League Table")
+    competitions = service.list_competitions()
+    if not competitions:
+        st.info("Add a competition to calculate a league table.")
+        return
+    competition_id = _select(
+        "Competition",
+        _options(competitions, lambda row: f"{row['name']} — {row['season']}"),
+    )
+    try:
+        result = service.league_table(int(competition_id))
+    except ValidationError as error:
+        st.warning(str(error))
+        return
+    competition = result["competition"]
+    st.subheader(f"{competition['name']} — {competition['season']}")
+    st.caption(result["ruleset"].label)
+    if result["table"]:
+        st.dataframe(result["table"], width="stretch", hide_index=True)
+    else:
+        st.info("No teams appear in this competition's fixtures yet.")
+    filename_name = "_".join(str(competition["name"]).lower().split())
+    filename_season = str(competition["season"]).replace("/", "-")
+    st.download_button(
+        "Download league table CSV",
+        service.league_table_csv(int(competition_id)),
+        file_name=f"{filename_name}_{filename_season}_table.csv",
+        mime="text/csv",
+        disabled=not result["table"],
+    )
+
+
 def _show_import_report(report: ImportReport) -> None:
     """Render counts and validation failures from a CSV import.
 
@@ -420,7 +473,7 @@ def main() -> None:
     )
     page = st.radio(
         "Navigate",
-        ("Competition Summary", "Matches", "Competitions", "Teams", "Venues", "Referees", "CSV Import"),
+        ("League Table", "Competition Summary", "Matches", "Competitions", "Teams", "Venues", "Referees", "CSV Import"),
         horizontal=True,
         label_visibility="collapsed",
     )
@@ -430,6 +483,7 @@ def main() -> None:
         service = RugbyService(connection)
         pages = {
             "Competition Summary": lambda: summary_page(service),
+            "League Table": lambda: league_table_page(service),
             "Matches": lambda: matches_page(service, connection),
             "CSV Import": lambda: import_page(connection),
             "Competitions": lambda: competitions_page(service, connection),

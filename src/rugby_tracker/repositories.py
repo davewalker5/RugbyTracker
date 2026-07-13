@@ -100,7 +100,9 @@ class RugbyRepository:
         self.connection = connection
         self.venues = Repository(connection, "venues", ("name", "town_city", "country"))
         self.teams = Repository(connection, "teams", ("name", "gender", "home_venue_id"))
-        self.competitions = Repository(connection, "competitions", ("name", "season", "gender"))
+        self.competitions = Repository(
+            connection, "competitions", ("name", "season", "gender", "ruleset")
+        )
         self.referees = Repository(connection, "referees", ("name",))
         self.matches = Repository(
             connection,
