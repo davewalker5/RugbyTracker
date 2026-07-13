@@ -63,38 +63,63 @@ def _options(records: list[dict[str, Any]], label: Callable[[dict[str, Any]], st
     return {row["id"]: formatter(row) for row in records}
 
 
-def _select(label: str, options: dict[int, str], value: int | None = None, optional: bool = False) -> int | None:
+def _select(
+    label: str,
+    options: dict[int, str],
+    value: int | None = None,
+    optional: bool = False,
+    placeholder: str | None = None,
+    key: str | None = None,
+) -> int | None:
     """Render an entity selection widget.
 
     :param label: User-facing widget label.
     :param options: Mapping of entity identifiers to display labels.
     :param value: Identifier selected initially, when present.
-    :param optional: Whether to include an empty selection.
-    :return: The selected identifier, or ``None`` for an optional empty value.
+    :param optional: Whether the placeholder should identify the field as optional.
+    :param placeholder: Optional placeholder override for the empty state.
+    :param key: Optional stable Streamlit widget key.
+    :return: The selected identifier, or ``None`` while no option is selected.
     """
-    keys: list[int | None] = ([None] if optional else []) + list(options)
-    index = keys.index(value) if value in keys else 0
+    keys = list(options)
+    index = keys.index(value) if value is not None and value in keys else None
+    empty_label = placeholder or f"Select {label.rstrip(' *').lower()}"
+    if optional and placeholder is None:
+        empty_label += " (optional)"
     return st.selectbox(
         label,
         keys,
         index=index,
         format_func=lambda key: "—" if key is None else options[key],
+        placeholder=empty_label,
+        key=key,
     )
 
 
-def _record_picker(label: str, records: list[dict[str, Any]], display: Callable[[dict[str, Any]], str]) -> dict[str, Any] | None:
+def _record_picker(
+    label: str,
+    records: list[dict[str, Any]],
+    display: Callable[[dict[str, Any]], str],
+    placeholder: str,
+    key: str,
+) -> dict[str, Any] | None:
     """Render a picker for adding a record or editing an existing one.
 
     :param label: User-facing widget label.
     :param records: Existing entity rows available for editing.
     :param display: Formatter used to label each existing record.
+    :param placeholder: Instruction displayed while no record is selected.
+    :param key: Stable Streamlit widget key.
     :return: The selected record, or ``None`` when adding a new one.
     """
     by_id = {row["id"]: row for row in records}
     selected = st.selectbox(
         label,
-        [None, *by_id],
-        format_func=lambda key: "Add new" if key is None else display(by_id[key]),
+        list(by_id),
+        index=None,
+        format_func=lambda record_id: display(by_id[record_id]),
+        placeholder=placeholder,
+        key=key,
     )
     return by_id.get(selected)
 
@@ -155,7 +180,13 @@ def _entity_page(
         st.info(f"No {title.lower()} have been recorded yet.")
 
     st.subheader(f"Add or edit {singular}")
-    selected = _record_picker("Record", records, display)
+    selected = _record_picker(
+        "Record",
+        records,
+        display,
+        f"Add a new {singular} or select one to edit",
+        f"{singular}_record",
+    )
     with st.form(f"{singular}_form"):
         values = fields(selected) if fields else {}
         save_clicked = st.form_submit_button("Save", type="primary")
@@ -220,7 +251,12 @@ def teams_page(service: RugbyService, connection: Any) -> None:
         """
         return {
             "name": st.text_input("Name *", value=row["name"] if row else ""),
-            "gender": st.selectbox("Category *", GENDERS, index=GENDERS.index(row["gender"]) if row else 0),
+            "gender": st.selectbox(
+                "Category *",
+                GENDERS,
+                index=GENDERS.index(row["gender"]) if row else None,
+                placeholder="Select a category",
+            ),
             "home_venue_id": _select("Home venue *", venue_options, row["home_venue_id"] if row else None),
         }
 
@@ -238,7 +274,7 @@ def competitions_page(service: RugbyService, connection: Any) -> None:
     :return: None.
     """
     records = service.list_competitions()
-    ruleset_options: list[str | None] = [None, *RULESETS]
+    ruleset_options = ["", *RULESETS]
 
     def fields(row: dict[str, Any] | None) -> dict[str, Any]:
         """Render competition fields and collect their values.
@@ -249,12 +285,21 @@ def competitions_page(service: RugbyService, connection: Any) -> None:
         return {
             "name": st.text_input("Name *", value=row["name"] if row else ""),
             "season": st.text_input("Season *", value=row["season"] if row else "", placeholder="2025/26"),
-            "gender": st.selectbox("Category *", GENDERS, index=GENDERS.index(row["gender"]) if row else 0),
+            "gender": st.selectbox(
+                "Category *",
+                GENDERS,
+                index=GENDERS.index(row["gender"]) if row else None,
+                placeholder="Select a category",
+            ),
             "ruleset": st.selectbox(
                 "League-table ruleset",
                 ruleset_options,
-                index=ruleset_options.index(row["ruleset"]) if row and row["ruleset"] in ruleset_options else 0,
-                format_func=lambda value: "No league table" if value is None else RULESETS[value].label,
+                index=(
+                    ruleset_options.index(row["ruleset"] or "")
+                    if row and (row["ruleset"] or "") in ruleset_options else None
+                ),
+                format_func=lambda value: "No league table" if value == "" else RULESETS[value].label,
+                placeholder="Select a league-table ruleset (optional)",
             ),
         }
 
@@ -309,7 +354,11 @@ def matches_page(service: RugbyService, connection: Any) -> None:
     selected_competition_id = _select(
         "Competition",
         _options(competitions, lambda row: f"{row['name']} — {row['season']}"),
+        key="matches_competition_filter",
     )
+    if selected_competition_id is None:
+        st.info("Select a competition to view its matches.")
+        return
     matches = service.list_matches(int(selected_competition_id))
     if matches:
         table = pd.DataFrame([{
@@ -325,14 +374,17 @@ def matches_page(service: RugbyService, connection: Any) -> None:
         st.info("No matches have been recorded yet.")
 
     selected = _record_picker(
-        "Record", matches,
+        "Record",
+        matches,
         lambda row: f"{row['match_date']} — {row['home_team_name']} v {row['away_team_name']}",
+        "Add a new match or select one to edit",
+        "match_record",
     )
     with st.form("match_form"):
         competition_id = _select(
             "Competition *",
             _options(competitions, lambda row: f"{row['name']} — {row['season']}"),
-            selected["competition_id"] if selected else int(selected_competition_id),
+            selected["competition_id"] if selected else None,
         )
         round_name = st.text_input(
             "Round",
@@ -371,36 +423,6 @@ def matches_page(service: RugbyService, connection: Any) -> None:
             st.error(str(error))
 
 
-def summary_page(service: RugbyService) -> None:
-    """Render fixtures and results grouped by competition round.
-
-    :param service: Business service used to build competition summaries.
-    :return: None.
-    """
-    st.header("Competition Summary")
-    competitions = service.list_competitions()
-    if not competitions:
-        st.info("Add a competition to view its summary.")
-        return
-    competition_id = _select("Competition", _options(competitions, lambda r: f"{r['name']} — {r['season']}"))
-    summary = service.competition_summary(int(competition_id))
-    competition = summary["competition"]
-    st.subheader(f"{competition['name']} — {competition['season']}")
-    st.caption(competition["gender"])
-    if not summary["rounds"]:
-        st.info("No fixtures or results have been recorded for this competition.")
-        return
-    for round_data in summary["rounds"]:
-        st.markdown(f"### {round_data['name']}")
-        for match in round_data["matches"]:
-            when = f"{match['match_date']}" + (f" · {match['kickoff_time']}" if match["kickoff_time"] else "")
-            st.caption(f"{when} · {match['venue_name']}" + (f" · Referee: {match['referee_name']}" if match["referee_name"] else ""))
-            if match["is_result"]:
-                st.write(f"**{match['home_team_name']} {match['home_score']}–{match['away_score']} {match['away_team_name']}**  ·  Tries {match['home_tries']}–{match['away_tries']}")
-            else:
-                st.write(f"**{match['home_team_name']} v {match['away_team_name']}** — Fixture")
-
-
 def league_table_page(service: RugbyService) -> None:
     """Render and offer CSV export for a calculated competition table.
 
@@ -415,7 +437,11 @@ def league_table_page(service: RugbyService) -> None:
     competition_id = _select(
         "Competition",
         _options(competitions, lambda row: f"{row['name']} — {row['season']}"),
+        key="league_competition_filter",
     )
+    if competition_id is None:
+        st.info("Select a competition to calculate its league table.")
+        return
     try:
         result = service.league_table(int(competition_id))
     except ValidationError as error:
@@ -469,7 +495,15 @@ def import_page(connection: Any) -> None:
         "Import venues, teams, competitions, referees, fixtures, and results. "
         "Names are matched without regard to capitalisation. Invalid rows are reported and refused."
     )
-    entity_type = st.selectbox("Record type", IMPORT_TYPES)
+    entity_type = st.selectbox(
+        "Record type",
+        IMPORT_TYPES,
+        index=None,
+        placeholder="Select an import type",
+    )
+    if entity_type is None:
+        st.info("Select an import type to download a template or import a CSV file.")
+        return
     importer = CsvImportService(connection)
     st.download_button(
         "Download CSV template",
@@ -527,7 +561,7 @@ def main() -> None:
     )
     page = st.radio(
         "Navigate",
-        ("League Table", "Competition Summary", "Matches", "Competitions", "Teams", "Venues", "Referees", "CSV Import"),
+        ("League Table", "Matches", "Competitions", "Teams", "Venues", "Referees", "CSV Import"),
         horizontal=True,
         label_visibility="collapsed",
     )
@@ -536,7 +570,6 @@ def main() -> None:
     try:
         service = RugbyService(connection)
         pages = {
-            "Competition Summary": lambda: summary_page(service),
             "League Table": lambda: league_table_page(service),
             "Matches": lambda: matches_page(service, connection),
             "CSV Import": lambda: import_page(connection),

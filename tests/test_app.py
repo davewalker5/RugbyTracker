@@ -54,6 +54,7 @@ def test_app_starts_with_an_empty_database(monkeypatch, tmp_path):
 def test_all_pages_render_against_empty_database(monkeypatch, tmp_path):
     monkeypatch.setenv("RUGBY_TRACKER_DB", str(tmp_path / "pages.db"))
     app = AppTest.from_file(APP_PATH, default_timeout=10).run()
+    assert "Competition Summary" not in app.radio[0].options
     for page in ("League Table", "Matches", "CSV Import", "Competitions", "Teams", "Venues", "Referees"):
         app.radio[0].set_value(page).run()
         assert not app.exception, page
@@ -109,13 +110,18 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     app.radio[0].set_value("League Table").run()
 
     assert not app.exception
+    assert app.selectbox[0].value is None
+    app.selectbox[0].set_value(competition).run()
     assert app.dataframe[0].value["Team"].tolist() == ["Bath", "Leicester Tigers"]
 
     app.radio[0].set_value("Matches").run()
 
     assert not app.exception
+    assert app.selectbox[0].value is None
+    app.selectbox[0].set_value(competition).run()
     assert app.dataframe[0].value["Score"].tolist() == ["31–17"]
     assert app.dataframe[0].value["Tries"].tolist() == ["4–2"]
+    assert all(selector.value is None for selector in app.selectbox[1:])
 
     app.selectbox[0].set_value(later_competition).run()
 
@@ -123,3 +129,9 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     assert app.dataframe[0].value["Competition"].tolist() == ["PREM 2026/27"]
     assert app.dataframe[0].value["Score"].tolist() == ["22–12"]
     assert app.dataframe[0].value["Tries"].tolist() == ["3–1"]
+
+    for page in ("Teams", "Competitions", "Venues", "Referees", "CSV Import"):
+        app.radio[0].set_value(page).run()
+        assert not app.exception, page
+        assert app.selectbox, page
+        assert all(selector.value is None for selector in app.selectbox), page
