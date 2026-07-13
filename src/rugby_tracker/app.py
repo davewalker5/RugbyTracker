@@ -5,12 +5,51 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Callable
 
+import pandas as pd
 import streamlit as st
+from pandas.io.formats.style import Styler
 
 from rugby_tracker.database import apply_migrations, connect
 from rugby_tracker.imports import IMPORT_TYPES, CsvImportService, ImportReport
 from rugby_tracker.services import GENDERS, RugbyService, ValidationError
 from rugby_tracker.standings import RULESETS
+
+
+WIN_BACKGROUND = "#d9ead3"
+LOSS_BACKGROUND = "#f4cccc"
+DRAW_BACKGROUND = "#fff2cc"
+
+
+def _style_match_results(table: pd.DataFrame, matches: list[dict[str, Any]]) -> Styler:
+    """Colour the team cells in completed fixtures according to the result.
+
+    :param table: Display-ready matches table with ``Home`` and ``Away`` columns.
+    :param matches: Match records corresponding positionally to the table rows.
+    :return: Styled table with winner, loser, and draw backgrounds applied.
+    """
+    styled = table.style
+    for index, match in enumerate(matches):
+        home_score = match["home_score"]
+        away_score = match["away_score"]
+        if home_score is None or away_score is None:
+            continue
+        if home_score == away_score:
+            styled.set_properties(
+                subset=pd.IndexSlice[[index], ["Home", "Away"]],
+                **{"background-color": DRAW_BACKGROUND},
+            )
+            continue
+        winner = "Home" if home_score > away_score else "Away"
+        loser = "Away" if winner == "Home" else "Home"
+        styled.set_properties(
+            subset=pd.IndexSlice[[index], [winner]],
+            **{"background-color": WIN_BACKGROUND},
+        )
+        styled.set_properties(
+            subset=pd.IndexSlice[[index], [loser]],
+            **{"background-color": LOSS_BACKGROUND},
+        )
+    return styled
 
 
 def _options(records: list[dict[str, Any]], label: Callable[[dict[str, Any]], str] | None = None) -> dict[int, str]:
@@ -269,12 +308,13 @@ def matches_page(service: RugbyService, connection: Any) -> None:
         st.warning("Before adding a match, add " + ", ".join(missing) + ".")
         return
     if matches:
+        table = pd.DataFrame([{
+            "Date": row["match_date"], "Competition": f"{row['competition_name']} {row['competition_season']}",
+            "Round": row["round"] or "—", "Home": row["home_team_name"], "Away": row["away_team_name"],
+            "Score": "Fixture" if row["home_score"] is None else f"{row['home_score']}–{row['away_score']}",
+        } for row in matches])
         st.dataframe(
-            [{
-                "Date": row["match_date"], "Competition": f"{row['competition_name']} {row['competition_season']}",
-                "Round": row["round"] or "—", "Home": row["home_team_name"], "Away": row["away_team_name"],
-                "Score": "Fixture" if row["home_score"] is None else f"{row['home_score']}–{row['away_score']}",
-            } for row in matches], width="stretch", hide_index=True,
+            _style_match_results(table, matches), width="stretch", hide_index=True,
         )
     else:
         st.info("No matches have been recorded yet.")
