@@ -1,0 +1,10 @@
+services:
+  rugby-tracker:
+    container_name: rugbytracker
+    image: davewalker5/rugbytracker:latest
+    platform: linux/amd64
+    restart: always
+    ports:
+      - "8102:8501"
+    volumes:
+      - /path/to/rugbytracker.db:/var/opt/rugbytracker/

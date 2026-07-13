@@ -4,7 +4,7 @@ import sqlite3
 
 import pytest
 
-from rugby_tracker.config import PROJECT_ROOT, database_path
+from rugby_tracker.config import PROJECT_ROOT, database_path, migrations_path
 from rugby_tracker.database import apply_migrations, connect
 
 
@@ -41,3 +41,17 @@ def test_database_path_uses_environment_override(monkeypatch, tmp_path):
     assert database_path() == override
     monkeypatch.delenv("RUGBY_TRACKER_DB")
     assert database_path() == PROJECT_ROOT / "data" / "rugbytracker.db"
+
+
+def test_runtime_root_uses_environment_override(monkeypatch, tmp_path):
+    """Runtime data and migrations can be rooted outside the installed package.
+
+    :param monkeypatch: Pytest helper used to configure the runtime root.
+    :param tmp_path: Temporary path used as the configured runtime root.
+    :return: None.
+    """
+    monkeypatch.delenv("RUGBY_TRACKER_DB", raising=False)
+    monkeypatch.setenv("RUGBY_TRACKER_ROOT", str(tmp_path))
+
+    assert database_path() == tmp_path / "data" / "rugbytracker.db"
+    assert migrations_path() == tmp_path / "migrations"
