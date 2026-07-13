@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rugby-union-tracker"
+version = "0.1.0"
+description = "Rugby Union Competition Tracker"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+  "pytest",
+  "streamlit>=1.58",
+  "yoyo-migrations>=9.0",
+]
+
+[project.scripts]
+rugby-tracker = "rugby_tracker.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

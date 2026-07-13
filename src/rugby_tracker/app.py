@@ -1,0 +1,262 @@
+"""Streamlit presentation layer for Rugby Tracker."""
+
+from __future__ import annotations
+
+from datetime import date
+from typing import Any, Callable
+
+import streamlit as st
+
+from rugby_tracker.database import apply_migrations, connect
+from rugby_tracker.services import GENDERS, RugbyService, ValidationError
+
+
+def _options(records: list[dict[str, Any]], label: Callable[[dict[str, Any]], str] | None = None) -> dict[int, str]:
+    formatter = label or (lambda row: row["name"])
+    return {row["id"]: formatter(row) for row in records}
+
+
+def _select(label: str, options: dict[int, str], value: int | None = None, optional: bool = False) -> int | None:
+    keys: list[int | None] = ([None] if optional else []) + list(options)
+    index = keys.index(value) if value in keys else 0
+    return st.selectbox(
+        label,
+        keys,
+        index=index,
+        format_func=lambda key: "—" if key is None else options[key],
+    )
+
+
+def _record_picker(label: str, records: list[dict[str, Any]], display: Callable[[dict[str, Any]], str]) -> dict[str, Any] | None:
+    by_id = {row["id"]: row for row in records}
+    selected = st.selectbox(
+        label,
+        [None, *by_id],
+        format_func=lambda key: "Add new" if key is None else display(by_id[key]),
+    )
+    return by_id.get(selected)
+
+
+def _finish_action(connection: Any, message: str) -> None:
+    connection.commit()
+    st.session_state["notice"] = message
+    st.rerun()
+
+
+def _show_notice() -> None:
+    if notice := st.session_state.pop("notice", None):
+        st.success(notice)
+
+
+def _entity_page(
+    title: str,
+    singular: str,
+    records: list[dict[str, Any]],
+    display: Callable[[dict[str, Any]], str],
+    fields: Callable[[dict[str, Any] | None], dict[str, Any]] | None,
+    save: Callable[..., int],
+    delete: Callable[[int], None],
+    columns: dict[str, str],
+    connection: Any,
+) -> None:
+    st.header(title)
+    if records:
+        st.dataframe(
+            [{heading: row.get(key) for key, heading in columns.items()} for row in records],
+            use_container_width=True,
+            hide_index=True,
+        )
+    else:
+        st.info(f"No {title.lower()} have been recorded yet.")
+
+    st.subheader(f"Add or edit {singular}")
+    selected = _record_picker("Record", records, display)
+    with st.form(f"{singular}_form"):
+        values = fields(selected) if fields else {}
+        save_clicked = st.form_submit_button("Save", type="primary")
+        delete_clicked = st.form_submit_button("Delete", disabled=selected is None)
+        try:
+            if save_clicked:
+                save(entity_id=selected["id"] if selected else None, **values)
+                _finish_action(connection, f"{singular.title()} saved.")
+            if delete_clicked and selected:
+                delete(selected["id"])
+                _finish_action(connection, f"{singular.title()} deleted.")
+        except (ValidationError, LookupError) as error:
+            st.error(str(error))
+
+
+def venues_page(service: RugbyService, connection: Any) -> None:
+    records = service.list_venues()
+
+    def fields(row: dict[str, Any] | None) -> dict[str, Any]:
+        return {
+            "name": st.text_input("Name *", value=row["name"] if row else ""),
+            "town_city": st.text_input("Town/City", value=(row["town_city"] or "") if row else ""),
+            "country": st.text_input("Country", value=(row["country"] or "") if row else ""),
+        }
+
+    _entity_page("Venues", "venue", records, lambda row: row["name"], fields, service.save_venue,
+                 lambda entity_id: service.delete("venue", entity_id),
+                 {"name": "Name", "town_city": "Town/City", "country": "Country"}, connection)
+
+
+def teams_page(service: RugbyService, connection: Any) -> None:
+    records, venues = service.list_teams(), service.list_venues()
+    venue_options = _options(venues)
+    venue_names = {row["id"]: row["name"] for row in venues}
+    if not venues:
+        st.header("Teams")
+        st.warning("Add a venue before adding a team.")
+        return
+
+    def fields(row: dict[str, Any] | None) -> dict[str, Any]:
+        return {
+            "name": st.text_input("Name *", value=row["name"] if row else ""),
+            "gender": st.selectbox("Category *", GENDERS, index=GENDERS.index(row["gender"]) if row else 0),
+            "home_venue_id": _select("Home venue *", venue_options, row["home_venue_id"] if row else None),
+        }
+
+    display_rows = [{**row, "home_venue": venue_names.get(row["home_venue_id"], "")} for row in records]
+    _entity_page("Teams", "team", display_rows, lambda row: row["name"], fields, service.save_team,
+                 lambda entity_id: service.delete("team", entity_id),
+                 {"name": "Name", "gender": "Category", "home_venue": "Home venue"}, connection)
+
+
+def competitions_page(service: RugbyService, connection: Any) -> None:
+    records = service.list_competitions()
+
+    def fields(row: dict[str, Any] | None) -> dict[str, Any]:
+        return {
+            "name": st.text_input("Name *", value=row["name"] if row else ""),
+            "season": st.text_input("Season *", value=row["season"] if row else "", placeholder="2025/26"),
+            "gender": st.selectbox("Category *", GENDERS, index=GENDERS.index(row["gender"]) if row else 0),
+        }
+
+    _entity_page("Competitions", "competition", records,
+                 lambda row: f"{row['name']} — {row['season']}", fields, service.save_competition,
+                 lambda entity_id: service.delete("competition", entity_id),
+                 {"name": "Name", "season": "Season", "gender": "Category"}, connection)
+
+
+def referees_page(service: RugbyService, connection: Any) -> None:
+    records = service.list_referees()
+
+    def fields(row: dict[str, Any] | None) -> dict[str, Any]:
+        return {"name": st.text_input("Name *", value=row["name"] if row else "")}
+
+    _entity_page("Referees", "referee", records, lambda row: row["name"], fields, service.save_referee,
+                 lambda entity_id: service.delete("referee", entity_id), {"name": "Name"}, connection)
+
+
+def matches_page(service: RugbyService, connection: Any) -> None:
+    matches = service.list_matches()
+    competitions, venues = service.list_competitions(), service.list_venues()
+    teams, referees = service.list_teams(), service.list_referees()
+    st.header("Matches")
+    missing = [name for name, records in (("competition", competitions), ("venue", venues), ("two teams", teams if len(teams) >= 2 else [])) if not records]
+    if missing:
+        st.warning("Before adding a match, add " + ", ".join(missing) + ".")
+        return
+    if matches:
+        st.dataframe(
+            [{
+                "Date": row["match_date"], "Competition": f"{row['competition_name']} {row['competition_season']}",
+                "Round": row["round"] or "—", "Home": row["home_team_name"], "Away": row["away_team_name"],
+                "Score": "Fixture" if row["home_score"] is None else f"{row['home_score']}–{row['away_score']}",
+            } for row in matches], use_container_width=True, hide_index=True,
+        )
+    else:
+        st.info("No matches have been recorded yet.")
+
+    selected = _record_picker(
+        "Record", matches,
+        lambda row: f"{row['match_date']} — {row['home_team_name']} v {row['away_team_name']}",
+    )
+    with st.form("match_form"):
+        competition_id = _select("Competition *", _options(competitions, lambda r: f"{r['name']} — {r['season']}"), selected["competition_id"] if selected else None)
+        round_name = st.text_input("Round", value=(selected["round"] or "") if selected else "")
+        match_date = st.date_input("Date *", value=date.fromisoformat(selected["match_date"]) if selected else date.today())
+        kickoff = st.text_input("Kick-off time", value=(selected["kickoff_time"] or "") if selected else "", placeholder="15:00")
+        venue_id = _select("Venue *", _options(venues), selected["venue_id"] if selected else None)
+        referee_id = _select("Referee", _options(referees), selected["referee_id"] if selected else None, optional=True)
+        left, right = st.columns(2)
+        with left:
+            home_team_id = _select("Home team *", _options(teams), selected["home_team_id"] if selected else None)
+            home_tries = st.text_input("Home tries", value=str(selected["home_tries"]) if selected and selected["home_tries"] is not None else "")
+            home_score = st.text_input("Home score", value=str(selected["home_score"]) if selected and selected["home_score"] is not None else "")
+        with right:
+            away_team_id = _select("Away team *", _options(teams), selected["away_team_id"] if selected else None)
+            away_tries = st.text_input("Away tries", value=str(selected["away_tries"]) if selected and selected["away_tries"] is not None else "")
+            away_score = st.text_input("Away score", value=str(selected["away_score"]) if selected and selected["away_score"] is not None else "")
+        st.caption("Leave all four try and score fields blank to save a future fixture.")
+        save_clicked = st.form_submit_button("Save", type="primary")
+        delete_clicked = st.form_submit_button("Delete", disabled=selected is None)
+        try:
+            if save_clicked:
+                service.save_match(
+                    entity_id=selected["id"] if selected else None, competition_id=competition_id,
+                    round=round_name, venue_id=venue_id, referee_id=referee_id, match_date=match_date,
+                    kickoff_time=kickoff, home_team_id=home_team_id, away_team_id=away_team_id,
+                    home_tries=home_tries, away_tries=away_tries, home_score=home_score, away_score=away_score,
+                )
+                _finish_action(connection, "Match saved.")
+            if delete_clicked and selected:
+                service.delete("match", selected["id"])
+                _finish_action(connection, "Match deleted.")
+        except (ValidationError, LookupError) as error:
+            st.error(str(error))
+
+
+def summary_page(service: RugbyService) -> None:
+    st.header("Competition Summary")
+    competitions = service.list_competitions()
+    if not competitions:
+        st.info("Add a competition to view its summary.")
+        return
+    competition_id = _select("Competition", _options(competitions, lambda r: f"{r['name']} — {r['season']}"))
+    summary = service.competition_summary(int(competition_id))
+    competition = summary["competition"]
+    st.subheader(f"{competition['name']} — {competition['season']}")
+    st.caption(competition["gender"])
+    if not summary["rounds"]:
+        st.info("No fixtures or results have been recorded for this competition.")
+        return
+    for round_data in summary["rounds"]:
+        st.markdown(f"### {round_data['name']}")
+        for match in round_data["matches"]:
+            when = f"{match['match_date']}" + (f" · {match['kickoff_time']}" if match["kickoff_time"] else "")
+            st.caption(f"{when} · {match['venue_name']}" + (f" · Referee: {match['referee_name']}" if match["referee_name"] else ""))
+            if match["is_result"]:
+                st.write(f"**{match['home_team_name']} {match['home_score']}–{match['away_score']} {match['away_team_name']}**  ·  Tries {match['home_tries']}–{match['away_tries']}")
+            else:
+                st.write(f"**{match['home_team_name']} v {match['away_team_name']}** — Fixture")
+
+
+def main() -> None:
+    st.set_page_config(page_title="Rugby Tracker", page_icon="🏉", layout="wide")
+    apply_migrations()
+    st.title("🏉 Rugby Tracker")
+    page = st.sidebar.radio(
+        "Navigate",
+        ("Competition Summary", "Matches", "Competitions", "Teams", "Venues", "Referees"),
+    )
+    _show_notice()
+    connection = connect()
+    try:
+        service = RugbyService(connection)
+        pages = {
+            "Competition Summary": lambda: summary_page(service),
+            "Matches": lambda: matches_page(service, connection),
+            "Competitions": lambda: competitions_page(service, connection),
+            "Teams": lambda: teams_page(service, connection),
+            "Venues": lambda: venues_page(service, connection),
+            "Referees": lambda: referees_page(service, connection),
+        }
+        pages[page]()
+    finally:
+        connection.close()
+
+
+if __name__ == "__main__":
+    main()
