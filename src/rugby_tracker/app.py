@@ -299,7 +299,6 @@ def matches_page(service: RugbyService, connection: Any) -> None:
     :param connection: Active database connection for commits.
     :return: None.
     """
-    matches = service.list_matches()
     competitions, venues = service.list_competitions(), service.list_venues()
     teams, referees = service.list_teams(), service.list_referees()
     st.header("Matches")
@@ -307,6 +306,11 @@ def matches_page(service: RugbyService, connection: Any) -> None:
     if missing:
         st.warning("Before adding a match, add " + ", ".join(missing) + ".")
         return
+    selected_competition_id = _select(
+        "Competition",
+        _options(competitions, lambda row: f"{row['name']} — {row['season']}"),
+    )
+    matches = service.list_matches(int(selected_competition_id))
     if matches:
         table = pd.DataFrame([{
             "Date": row["match_date"], "Competition": f"{row['competition_name']} {row['competition_season']}",
@@ -325,7 +329,11 @@ def matches_page(service: RugbyService, connection: Any) -> None:
         lambda row: f"{row['match_date']} — {row['home_team_name']} v {row['away_team_name']}",
     )
     with st.form("match_form"):
-        competition_id = _select("Competition *", _options(competitions, lambda r: f"{r['name']} — {r['season']}"), selected["competition_id"] if selected else None)
+        competition_id = _select(
+            "Competition *",
+            _options(competitions, lambda row: f"{row['name']} — {row['season']}"),
+            selected["competition_id"] if selected else int(selected_competition_id),
+        )
         round_name = st.text_input(
             "Round",
             value=(selected["round"] or "") if selected else "",

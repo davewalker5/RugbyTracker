@@ -77,6 +77,9 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     competition = service.save_competition(
         name="PREM", season="2025/26", gender="Men", ruleset="prem_2025_26"
     )
+    later_competition = service.save_competition(
+        name="PREM", season="2026/27", gender="Men", ruleset="prem_2025_26"
+    )
     service.save_match(
         competition_id=competition,
         venue_id=venue,
@@ -87,6 +90,17 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
         away_tries=2,
         home_score=31,
         away_score=17,
+    )
+    service.save_match(
+        competition_id=later_competition,
+        venue_id=venue,
+        match_date="2026-09-20",
+        home_team_id=away,
+        away_team_id=home,
+        home_tries=3,
+        away_tries=1,
+        home_score=22,
+        away_score=12,
     )
     connection.commit()
     connection.close()
@@ -102,3 +116,10 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     assert not app.exception
     assert app.dataframe[0].value["Score"].tolist() == ["31–17"]
     assert app.dataframe[0].value["Tries"].tolist() == ["4–2"]
+
+    app.selectbox[0].set_value(later_competition).run()
+
+    assert not app.exception
+    assert app.dataframe[0].value["Competition"].tolist() == ["PREM 2026/27"]
+    assert app.dataframe[0].value["Score"].tolist() == ["22–12"]
+    assert app.dataframe[0].value["Tries"].tolist() == ["3–1"]
