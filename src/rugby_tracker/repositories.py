@@ -129,7 +129,7 @@ class RugbyRepository:
                    h.name AS home_team_name, a.name AS away_team_name
             FROM matches m
             JOIN competitions c ON c.id = m.competition_id
-            JOIN venues v ON v.id = m.venue_id
+            LEFT JOIN venues v ON v.id = m.venue_id
             LEFT JOIN referees r ON r.id = m.referee_id
             JOIN teams h ON h.id = m.home_team_id
             JOIN teams a ON a.id = m.away_team_id

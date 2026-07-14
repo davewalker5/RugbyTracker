@@ -356,7 +356,9 @@ def matches_page(service: RugbyService, connection: Any) -> None:
     competitions, venues = service.list_competitions(), service.list_venues()
     teams, referees = service.list_teams(), service.list_referees()
     st.header("Matches")
-    missing = [name for name, records in (("competition", competitions), ("venue", venues), ("two teams", teams if len(teams) >= 2 else [])) if not records]
+    # Venues are optional because international fixtures can be announced before
+    # their ground is confirmed; competitions and two teams remain prerequisites.
+    missing = [name for name, records in (("competition", competitions), ("two teams", teams if len(teams) >= 2 else [])) if not records]
     if missing:
         st.warning("Before adding a match, add " + ", ".join(missing) + ".")
         return
@@ -372,9 +374,12 @@ def matches_page(service: RugbyService, connection: Any) -> None:
     selected = None
     table_key = f"matches_table_{selected_competition_id}"
     if matches:
+        # Keep venue beside the round so the fixture context is visible before
+        # the competing teams, with a fallback for grounds still to be confirmed.
         table = pd.DataFrame([{
             "Date": row["match_date"], "Competition": f"{row['competition_name']} {row['competition_season']}",
-            "Round": row["round"] or "—", "Home": row["home_team_name"], "Away": row["away_team_name"],
+            "Round": row["round"] or "—", "Venue": row["venue_name"] or "TBC",
+            "Home": row["home_team_name"], "Away": row["away_team_name"],
             "Score": "Fixture" if row["home_score"] is None else f"{row['home_score']}–{row['away_score']}",
             "Tries": "Fixture" if row["home_tries"] is None else f"{row['home_tries']}–{row['away_tries']}",
         } for row in matches])
@@ -408,7 +413,12 @@ def matches_page(service: RugbyService, connection: Any) -> None:
         )
         match_date = st.date_input("Date *", value=date.fromisoformat(selected["match_date"]) if selected else date.today())
         kickoff = st.text_input("Kick-off time", value=(selected["kickoff_time"] or "") if selected else "", placeholder="15:00")
-        venue_id = _select("Venue *", _options(venues), selected["venue_id"] if selected else None)
+        venue_id = _select(
+            "Venue",
+            _options(venues),
+            selected["venue_id"] if selected else None,
+            optional=True,
+        )
         referee_id = _select("Referee", _options(referees), selected["referee_id"] if selected else None, optional=True)
         left, right = st.columns(2)
         with left:

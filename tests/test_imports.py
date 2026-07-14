@@ -133,6 +133,31 @@ Premiership Rugby,2025/26,Final,Welford Road,,2025-09-27,,Leicester Tigers,Bath,
     assert (repeated.imported, repeated.skipped) == (0, 2)
 
 
+def test_match_import_allows_a_venue_to_be_announced_later(
+    service, core_records, connection
+):
+    """Import an international fixture whose venue is still unknown.
+
+    :param service: Rugby service backed by the test database.
+    :param core_records: Identifiers for existing reference records.
+    :param connection: Open test database connection.
+    :return: None.
+    """
+    # A blank venue should persist as NULL and remain editable through the service.
+    importer = CsvImportService(connection)
+    report = importer.import_csv(
+        "Matches",
+        """competition,season,venue,date,home_team,away_team
+Premiership Rugby,2025/26,,2026-10-01,Bath,Leicester Tigers
+""",
+    )
+
+    assert (report.imported, report.invalid) == (1, 0)
+    match_row = service.list_matches(core_records["competition"])[0]
+    assert match_row["venue_id"] is None
+    assert match_row["venue_name"] is None
+
+
 def test_m6n_2026_import_bundle_produces_the_official_final_table(connection):
     importer = CsvImportService(connection)
     root = Path("data/imports/M6N-2026")
@@ -164,6 +189,53 @@ def test_m6n_2026_import_bundle_produces_the_official_final_table(connection):
         ("England", 153, 151, 8),
         ("Wales", 90, 172, 6),
     ]
+
+
+def test_wxv_2026_import_bundles_are_complete_and_repeatable(connection):
+    """Import both WXV bundles and verify their selectable competition data.
+
+    :param connection: Empty migrated test database connection.
+    :return: None.
+    """
+    # Import shared reference data additively, just as sequential CLI imports do.
+    importer = CsvImportService(connection)
+    bundles = (
+        (Path("data/imports/WXV-GLOBAL-2026"), 12, 27, "wxv_global_2026"),
+        (Path("data/imports/WXV-CHALLENGER-2026"), 6, 9, "wxv_challenger_2026"),
+    )
+    for root, team_count, match_count, ruleset in bundles:
+        for entity_type, filename in (
+            ("Venues", "venues.csv"),
+            ("Teams", "teams.csv"),
+            ("Competitions", "competitions.csv"),
+            ("Referees", "referees.csv"),
+            ("Matches", "matches.csv"),
+        ):
+            report = importer.import_csv(entity_type, (root / filename).read_bytes())
+            assert report.invalid == 0, report.error_rows()
+
+        competition = next(
+            row for row in importer.rugby.list_competitions()
+            if row["ruleset"] == ruleset
+        )
+        matches = importer.rugby.list_matches(competition["id"])
+        assert len(matches) == match_count
+        assert len({match["home_team_id"] for match in matches} |
+                   {match["away_team_id"] for match in matches}) == team_count
+        assert importer.rugby.league_table(competition["id"])["validation_errors"] == []
+
+    # Re-importing every file must leave the stored competition data unchanged.
+    for root, _, _, _ in bundles:
+        for entity_type, filename in (
+            ("Venues", "venues.csv"),
+            ("Teams", "teams.csv"),
+            ("Competitions", "competitions.csv"),
+            ("Referees", "referees.csv"),
+            ("Matches", "matches.csv"),
+        ):
+            report = importer.import_csv(entity_type, (root / filename).read_bytes())
+            assert report.imported == 0
+            assert report.invalid == 0
 
 
 def test_same_competition_name_across_seasons_is_allowed_and_matches_correctly(

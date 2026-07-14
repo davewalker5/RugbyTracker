@@ -83,6 +83,8 @@ For the Premiership Rugby and Premiership Women's Rugby rulesets, matches marked
 
 For the Men's and Women's Six Nations rulesets, the tracker validates the six-team, 15-match single round robin and ranks teams by competition points, points difference and tries scored. Once every result is present, it also determines the champion (including a shared title), Grand Slam, Triple Crown and Wooden Spoon.
 
+For the 2026 WXV Global Series and Global Series Challenger rulesets, the tracker supports the published selected-fixture formats and ranks teams by competition points, points difference and tries scored.
+
 ### Competition Rules
 
 Support for competition-specific points systems, including:
@@ -91,6 +93,8 @@ Support for competition-specific points systems, including:
 - Premiership Women's Rugby (2025/26)
 - Men's Six Nations
 - Women's Six Nations
+- WXV Global Series (2026)
+- WXV Global Series Challenger (2026)
 
 ### Export
 
