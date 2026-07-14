@@ -5,7 +5,13 @@ from pathlib import Path
 import pandas as pd
 from streamlit.testing.v1 import AppTest
 
-from rugby_tracker.app import DRAW_BACKGROUND, LOSS_BACKGROUND, WIN_BACKGROUND, _style_match_results
+from rugby_tracker.app import (
+    DRAW_BACKGROUND,
+    LOSS_BACKGROUND,
+    WIN_BACKGROUND,
+    _export_validation_error,
+    _style_match_results,
+)
 from rugby_tracker.database import apply_migrations, connect
 from rugby_tracker.services import RugbyService
 
@@ -55,9 +61,57 @@ def test_all_pages_render_against_empty_database(monkeypatch, tmp_path):
     monkeypatch.setenv("RUGBY_TRACKER_DB", str(tmp_path / "pages.db"))
     app = AppTest.from_file(APP_PATH, default_timeout=10).run()
     assert "Competition Summary" not in app.radio[0].options
-    for page in ("League Table", "Matches", "CSV Import", "Competitions", "Teams", "Venues", "Referees"):
+    for page in (
+        "League Table", "Matches", "CSV Import", "CSV Export",
+        "Competitions", "Teams", "Venues", "Referees",
+    ):
         app.radio[0].set_value(page).run()
         assert not app.exception, page
+
+
+def test_csv_export_defaults_and_resets_file_stem(monkeypatch, tmp_path):
+    """Changing export type always restores its conventional filename stem.
+
+    :param monkeypatch: Pytest helper used to configure the application database.
+    :param tmp_path: Temporary directory in which to create the test database.
+    :return: None.
+    """
+    # Select, edit, and change type to prove user changes never leak across types.
+    monkeypatch.setenv("RUGBY_TRACKER_DB", str(tmp_path / "exports.db"))
+    app = AppTest.from_file(APP_PATH, default_timeout=10).run()
+    app.radio[0].set_value("CSV Export").run()
+
+    assert app.selectbox[0].value is None
+    assert app.text_input[0].value == ""
+    assert app.button[0].label == "Download"
+    app.button[0].click().run()
+    assert app.warning[0].value == (
+        "Specify an export type and a file stem before downloading."
+    )
+    app.selectbox[0].set_value("Competitions").run()
+    assert app.text_input[0].value == "competitions"
+    app.text_input[0].set_value("custom_name").run()
+    assert app.text_input[0].value == "custom_name"
+    app.selectbox[0].set_value("Matches").run()
+    assert app.text_input[0].value == "matches"
+
+
+def test_csv_export_requires_type_and_file_stem():
+    """Reject download attempts missing either required export field.
+
+    :return: None.
+    """
+    # Validate each missing-field combination and the successful case.
+    assert _export_validation_error(None, "") == (
+        "Specify an export type and a file stem before downloading."
+    )
+    assert _export_validation_error("Teams", "") == (
+        "Specify a file stem before downloading."
+    )
+    assert _export_validation_error(None, "teams") == (
+        "Specify an export type before downloading."
+    )
+    assert _export_validation_error("Teams", "teams") is None
 
 
 def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
@@ -150,7 +204,7 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     assert app.dataframe[0].value["Score"].tolist() == ["22–12"]
     assert app.dataframe[0].value["Tries"].tolist() == ["3–1"]
 
-    for page in ("Teams", "Competitions", "CSV Import"):
+    for page in ("Teams", "Competitions", "CSV Import", "CSV Export"):
         app.radio[0].set_value(page).run()
         assert not app.exception, page
         assert app.selectbox, page
