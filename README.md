@@ -42,20 +42,6 @@ Record match details including:
 
 Rounds may be numeric or descriptive knockout stages such as _Quarter-Final_, _Semi-Final_ and _Final_.
 
-### CSV Import
-
-Import data from CSV files for:
-
-- Venues
-- Teams
-- Referees
-- Competitions
-- Matches
-
-Match imports automatically resolve related entities using case-insensitive name matching while validating all foreign-key relationships.
-
-Imports are additive: when a CSV row identifies a venue, team, competition, referee or match that already exists, the row is skipped and the stored record is left unchanged. To change an existing record, edit it in the application rather than re-importing it.
-
 ### Automatic League Tables
 
 Automatically calculate league standings directly from recorded match results.
@@ -96,9 +82,49 @@ Support for competition-specific points systems, including:
 - WXV Global Series (2026)
 - WXV Global Series Challenger (2026)
 
-### Export
+### CSV Import
+
+Import data from CSV files for:
+
+- Venues
+- Teams
+- Referees
+- Competitions
+- Matches
+
+Match imports automatically resolve related entities using case-insensitive name matching while validating all foreign-key relationships.
+
+Imports are additive: when a CSV row identifies a venue, team, competition, referee or match that already exists, the row is skipped and the stored record is left unchanged. To change an existing record, edit it in the application rather than re-importing it.
+
+The same data can be exported from the command line:
+
+```bash
+rugby-import --type matches --input matches.csv
+```
+
+Supported types are _competitions_, _venues_, _teams_, _referees_, and _matches_. The convenience wrapper accepts the same values:
+
+```bash
+./scripts/import.sh matches matches.csv
+```
+
+### CSV Export
 
 Export calculated league tables to CSV for use in spreadsheets or further analysis.
+
+The CSV Export page can also export all competitions, venues, teams, referees, and matches using the same schemas accepted by CSV Import. Export filenames have editable, type-specific defaults.
+
+The same data can be exported from the command line:
+
+```bash
+rugby-export --type matches --output matches.csv
+```
+
+Supported types are _competitions_, _venues_, _teams_, _referees_, and _matches_. The convenience wrapper accepts the same values:
+
+```bash
+./scripts/export.sh matches matches.csv
+```
 
 ## Feedback
 

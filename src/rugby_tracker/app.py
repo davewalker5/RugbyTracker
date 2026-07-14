@@ -10,6 +10,7 @@ import streamlit as st
 from pandas.io.formats.style import Styler
 
 from rugby_tracker.database import apply_migrations, connect
+from rugby_tracker.exports import EXPORT_TYPES, CsvExportService
 from rugby_tracker.imports import IMPORT_TYPES, CsvImportService, ImportReport
 from rugby_tracker.services import GENDERS, RugbyService, ValidationError
 from rugby_tracker.standings import RULESETS
@@ -562,6 +563,72 @@ def import_page(connection: Any) -> None:
         _show_import_report(report)
 
 
+def _export_validation_error(entity_type: str | None, file_stem: str | None) -> str | None:
+    """Validate the fields required to download a CSV export.
+
+    :param entity_type: Selected export record type, when supplied.
+    :param file_stem: User-editable filename stem, when supplied.
+    :return: A user-facing validation message, or ``None`` when valid.
+    """
+    # Report both omissions together so one click gives the user complete guidance.
+    missing: list[str] = []
+    if entity_type is None:
+        missing.append("an export type")
+    if not str(file_stem or "").strip():
+        missing.append("a file stem")
+    return f"Specify {' and '.join(missing)} before downloading." if missing else None
+
+
+def _reset_export_file_stem() -> None:
+    """Reset the export filename whenever the selected record type changes.
+
+    :return: None.
+    """
+    # The callback deliberately overwrites user edits on every type change, as
+    # each export type has a predictable default filename.
+    entity_type = st.session_state.get("csv_export_type")
+    st.session_state["csv_export_file_stem"] = (
+        str(entity_type).casefold() if entity_type else ""
+    )
+
+
+def export_page(connection: Any) -> None:
+    """Render selection, filename, and download controls for CSV exports.
+
+    :param connection: Active database connection used by the exporter.
+    :return: None.
+    """
+    # Keep the control layout parallel with CSV Import for familiarity.
+    st.header("CSV Export")
+    st.write("Export competitions, venues, teams, referees, fixtures, and results as CSV.")
+    entity_type = st.selectbox(
+        "Record type",
+        EXPORT_TYPES,
+        index=None,
+        placeholder="Select an export type",
+        key="csv_export_type",
+        on_change=_reset_export_file_stem,
+    )
+    file_stem = st.text_input("File stem", key="csv_export_file_stem")
+    validation_error = _export_validation_error(entity_type, file_stem)
+    if validation_error:
+        # A regular button can report invalid fields without initiating a browser
+        # download; Streamlit's download control cannot cancel an invalid click.
+        if st.button("Download", type="primary"):
+            st.warning(validation_error)
+    else:
+        # Only render the browser download control after both required values pass.
+        assert entity_type is not None
+        data = CsvExportService(connection).export_csv(entity_type)
+        st.download_button(
+            "Download",
+            data,
+            file_name=f"{file_stem.strip()}.csv",
+            mime="text/csv",
+            type="primary",
+        )
+
+
 def main() -> None:
     """Configure and render the Rugby Tracker Streamlit application.
 
@@ -596,7 +663,10 @@ def main() -> None:
     )
     page = st.radio(
         "Navigate",
-        ("League Table", "Matches", "Competitions", "Teams", "Venues", "Referees", "CSV Import"),
+        (
+            "League Table", "Matches", "Competitions", "Teams", "Venues", "Referees",
+            "CSV Import", "CSV Export",
+        ),
         horizontal=True,
         label_visibility="collapsed",
     )
@@ -608,6 +678,7 @@ def main() -> None:
             "League Table": lambda: league_table_page(service),
             "Matches": lambda: matches_page(service, connection),
             "CSV Import": lambda: import_page(connection),
+            "CSV Export": lambda: export_page(connection),
             "Competitions": lambda: competitions_page(service, connection),
             "Teams": lambda: teams_page(service, connection),
             "Venues": lambda: venues_page(service, connection),

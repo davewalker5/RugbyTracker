@@ -21,7 +21,6 @@ from rugby_tracker.services import (
 
 
 IMPORT_TYPES = ("Venues", "Teams", "Competitions", "Referees", "Matches")
-
 TEMPLATE_HEADERS = {
     "Venues": ("name", "town_city", "country"),
     "Teams": ("name", "gender", "home_venue"),
