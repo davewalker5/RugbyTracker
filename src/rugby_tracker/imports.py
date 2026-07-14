@@ -291,14 +291,23 @@ class CsvImportService:
         :param row: Normalised CSV row using entity names instead of identifiers.
         :return: Prepared service values and all validation messages.
         """
+        # Resolve the competition first so similarly named teams can be limited
+        # to the competition's gender when the fixture uses a short country name.
         messages: list[str] = []
+        competition_id = self._resolve_competition(
+            row.get("competition"), row.get("season"), messages
+        )
         values: dict[str, Any] = {
-            "competition_id": self._resolve_competition(
-                row.get("competition"), row.get("season"), messages
+            "competition_id": competition_id,
+            "venue_id": self._resolve(
+                "venues", row.get("venue"), "Venue", messages, optional=True
             ),
-            "venue_id": self._resolve("venues", row.get("venue"), "Venue", messages),
-            "home_team_id": self._resolve("teams", row.get("home_team"), "Home team", messages),
-            "away_team_id": self._resolve("teams", row.get("away_team"), "Away team", messages),
+            "home_team_id": self._resolve_team(
+                row.get("home_team"), "Home team", competition_id, messages
+            ),
+            "away_team_id": self._resolve_team(
+                row.get("away_team"), "Away team", competition_id, messages
+            ),
             "referee_id": self._resolve("referees", row.get("referee"), "Referee", messages, optional=True),
             "round": optional_text(row.get("round")),
             "match_date": self._value(lambda: self._date(row.get("date")), messages),
@@ -309,6 +318,59 @@ class CsvImportService:
         scores = self._scores(row, messages)
         values.update(scores)
         return (None, messages) if messages else (values, messages)
+
+    def _resolve_team(
+        self,
+        value: str | None,
+        label: str,
+        competition_id: int | None,
+        messages: list[str],
+    ) -> int | None:
+        """Resolve a team name within the selected competition's gender.
+
+        International fixture feeds commonly use ``England`` while the tracker
+        stores the women's team as ``England Women``. Both forms are supported
+        without allowing a women's fixture to resolve to the men's team.
+
+        :param value: Team name or international short name from the CSV row.
+        :param label: User-facing field label used in validation messages.
+        :param competition_id: Resolved competition used to constrain gender.
+        :param messages: Collection that receives validation failures.
+        :return: The unique matching team identifier, or ``None`` on failure.
+        """
+        # A missing competition already has its own validation error, but the team
+        # name can still be checked for a useful required-field message.
+        name = optional_text(value)
+        if name is None:
+            messages.append(f"{label} is required.")
+            return None
+        if competition_id is None:
+            # Preserve independent reference validation when the competition is
+            # invalid, since import reports should describe every bad field.
+            return self._resolve("teams", name, label, messages)
+
+        # Prefer the canonical name, then accept the conventional gender suffix.
+        competition = self.connection.execute(
+            "SELECT gender FROM competitions WHERE id = ?", (competition_id,)
+        ).fetchone()
+        assert competition is not None
+        gender = str(competition["gender"])
+        for alias in (name, f"{name} {gender}"):
+            rows = self.connection.execute(
+                """
+                SELECT id FROM teams
+                WHERE gender = ? AND name = ? COLLATE NOCASE
+                ORDER BY id
+                """,
+                (gender, alias),
+            ).fetchall()
+            if len(rows) > 1:
+                messages.append(f'{label} "{name}" matches more than one {gender} team.')
+                return None
+            if rows:
+                return int(rows[0]["id"])
+        messages.append(f'{label} "{name}" was not found for category {gender}.')
+        return None
 
     def _resolve_competition(
         self,
@@ -528,8 +590,15 @@ class CsvImportService:
         competition_id = self._identity_competition_id(
             row.get("competition"), row.get("season")
         )
-        home_team_id = self._identity_entity_id("teams", row.get("home_team"))
-        away_team_id = self._identity_entity_id("teams", row.get("away_team"))
+        # Use the same gender-aware aliases as full validation so repeat imports
+        # recognise fixtures whose CSV uses international short names.
+        identity_messages: list[str] = []
+        home_team_id = self._resolve_team(
+            row.get("home_team"), "Home team", competition_id, identity_messages
+        )
+        away_team_id = self._resolve_team(
+            row.get("away_team"), "Away team", competition_id, identity_messages
+        )
         try:
             match_date = date.fromisoformat(required_text(row.get("date"), "Match date")).isoformat()
         except (ValidationError, ValueError):

@@ -116,8 +116,30 @@ def test_table_ranks_by_points_then_points_difference_not_wins():
 
 def test_2025_26_rulesets_have_independent_identifiers_and_currently_same_result():
     matches = [match(1, "Alpha", 2, "Bravo", 31, 27, 4, 4)]
-    assert set(RULESETS) == {"prem_2025_26", "pwr_2025_26", "m6n", "w6n"}
+    assert set(RULESETS) == {
+        "prem_2025_26", "pwr_2025_26", "m6n", "w6n",
+        "wxv_global_2026", "wxv_challenger_2026",
+    }
     assert calculate_table(matches, "prem_2025_26") == calculate_table(matches, "pwr_2025_26")
+
+
+def test_wxv_rulesets_use_international_scoring_and_published_structures():
+    """Verify the two 2026 WXV competition definitions.
+
+    :return: None.
+    """
+    # Global uses selected fixtures, while Challenger gives each team three games.
+    global_series = RULESETS["wxv_global_2026"]
+    challenger = RULESETS["wxv_challenger_2026"]
+
+    assert global_series.competition.team_count == 12
+    assert global_series.competition.single_round_robin is False
+    assert challenger.competition.team_count == 6
+    assert challenger.competition.matches_per_team == 3
+    assert global_series.scoring == challenger.scoring
+    assert global_series.league_table.tie_breakers == (
+        "competition_points", "points_difference", "tries_for"
+    )
 
 
 def test_unknown_ruleset_is_rejected():

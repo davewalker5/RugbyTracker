@@ -119,6 +119,10 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     assert not app.exception
     assert app.selectbox[0].value is None
     app.selectbox[0].set_value(competition).run()
+    assert app.dataframe[0].value.columns.tolist() == [
+        "Date", "Competition", "Round", "Venue", "Home", "Away", "Score", "Tries"
+    ]
+    assert app.dataframe[0].value["Venue"].tolist() == ["The Rec"]
     assert app.dataframe[0].value["Score"].tolist() == ["31–17"]
     assert app.dataframe[0].value["Tries"].tolist() == ["4–2"]
     assert all(selector.value is None for selector in app.selectbox[1:])

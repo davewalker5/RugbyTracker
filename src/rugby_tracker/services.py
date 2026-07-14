@@ -202,10 +202,16 @@ class RugbyService:
         :return: The saved match's identifier.
         :raises ValidationError: If required, reference, date, time, or score data is invalid.
         """
+        # Resolve required references first, while allowing a future fixture to
+        # remain venue-less until the host union confirms its ground.
         competition_id = self._foreign_key(
             self.repo.competitions, values.get("competition_id"), "Competition"
         )
-        venue_id = self._foreign_key(self.repo.venues, values.get("venue_id"), "Venue")
+        venue_value = values.get("venue_id")
+        venue_id = (
+            self._foreign_key(self.repo.venues, venue_value, "Venue")
+            if venue_value not in (None, "") else None
+        )
         home_team_id = self._foreign_key(self.repo.teams, values.get("home_team_id"), "Home team")
         away_team_id = self._foreign_key(self.repo.teams, values.get("away_team_id"), "Away team")
         if home_team_id == away_team_id:

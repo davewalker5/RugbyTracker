@@ -112,6 +112,10 @@ _CLUB_TABLE = LeagueTableRules(
     excluded_rounds=frozenset({"quarter-final", "semi-final", "final"}),
 )
 _HOME_NATIONS = frozenset({"England", "Ireland", "Scotland", "Wales"})
+_INTERNATIONAL_SCORING = ScoringRules(4, 2, 0, 4, 1, 7, 1)
+_INTERNATIONAL_TABLE = LeagueTableRules(
+    ("competition_points", "points_difference", "tries_for")
+)
 
 
 RULESETS = {
@@ -150,6 +154,22 @@ RULESETS = {
             share_equal_positions=True,
         ),
         AwardRules(True, True, True, True, _HOME_NATIONS),
+    ),
+    "wxv_global_2026": Ruleset(
+        "wxv_global_2026",
+        "WXV Global Series (2026)",
+        CompetitionFormat(team_count=12),
+        _INTERNATIONAL_SCORING,
+        _INTERNATIONAL_TABLE,
+        AwardRules(champion=True),
+    ),
+    "wxv_challenger_2026": Ruleset(
+        "wxv_challenger_2026",
+        "WXV Global Series Challenger (2026)",
+        CompetitionFormat(team_count=6, matches_per_team=3),
+        _INTERNATIONAL_SCORING,
+        _INTERNATIONAL_TABLE,
+        AwardRules(champion=True),
     ),
 }
 
