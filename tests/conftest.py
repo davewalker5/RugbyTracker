@@ -29,13 +29,20 @@ def service(connection: sqlite3.Connection):
 
 @pytest.fixture
 def core_records(service: RugbyService):
-    venue = service.save_venue(name="The Rec", town_city="Bath", country="England")
-    away_venue = service.save_venue(name="Welford Road", town_city="Leicester", country="England")
+    england = service.save_country(name="England")
+    bath_country = service.save_country(name="Bath")
+    leicester_country = service.save_country(name="Leicester Tigers")
+    venue = service.save_venue(
+        name="The Rec", town_city="Bath", country_id=england
+    )
+    away_venue = service.save_venue(
+        name="Welford Road", town_city="Leicester", country_id=england
+    )
     home = service.save_team(
-        name="Bath", country="Bath", gender="Men", home_venue_id=venue
+        name="Bath", country_id=bath_country, gender="Men", home_venue_id=venue
     )
     away = service.save_team(
-        name="Leicester Tigers", country="Leicester Tigers", gender="Men",
+        name="Leicester Tigers", country_id=leicester_country, gender="Men",
         home_venue_id=away_venue,
     )
     competition = service.save_competition(name="Premiership Rugby", season="2025/26", gender="Men")
@@ -47,4 +54,7 @@ def core_records(service: RugbyService):
         "away": away,
         "competition": competition,
         "referee": referee,
+        "england": england,
+        "bath_country": bath_country,
+        "leicester_country": leicester_country,
     }

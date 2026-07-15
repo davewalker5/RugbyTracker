@@ -6,11 +6,15 @@ from rugby_tracker.services import ValidationError
 
 
 def test_crud_for_reference_entities(service, core_records):
-    venue = service.repo.venues.get(core_records["venue"])
+    venue = service.list_venues()[0]
     assert venue == {
-        "id": core_records["venue"], "name": "The Rec", "town_city": "Bath", "country": "England"
+        "id": core_records["venue"], "name": "The Rec", "town_city": "Bath",
+        "country_id": core_records["england"], "country": "England",
     }
-    service.save_venue(core_records["venue"], name="Recreation Ground", town_city="Bath", country="England")
+    service.save_venue(
+        core_records["venue"], name="Recreation Ground", town_city="Bath",
+        country_id=core_records["england"],
+    )
     assert service.repo.venues.get(core_records["venue"])["name"] == "Recreation Ground"
 
     service.save_referee(core_records["referee"], name="  Luke Pearce  ")
@@ -25,13 +29,13 @@ def test_crud_for_reference_entities(service, core_records):
         (lambda service: service.save_competition(name="League", season="", gender="Men"), "Season is required."),
         (
             lambda service: service.save_team(
-                name="Club", country="England", gender="Mixed", home_venue_id=1
+                name="Club", country_id=1, gender="Mixed", home_venue_id=1
             ),
             "Category must be",
         ),
         (
             lambda service: service.save_team(
-                name="Club", country="", gender="Men", home_venue_id=1
+                name="Club", country_id="", gender="Men", home_venue_id=1
             ),
             "Country is required.",
         ),
@@ -72,17 +76,18 @@ def test_team_identity_is_name_plus_country(service, core_records):
     :return: None.
     """
     service.save_team(
-        name="United", country="England", gender="Women",
+        name="United", country_id=core_records["england"], gender="Women",
         home_venue_id=core_records["venue"],
     )
+    scotland = service.save_country(name="Scotland")
     service.save_team(
-        name="United", country="Scotland", gender="Men",
+        name="United", country_id=scotland, gender="Men",
         home_venue_id=core_records["venue"],
     )
 
     with pytest.raises(ValidationError, match="name and country already exists"):
         service.save_team(
-            name="united", country="ENGLAND", gender="Men",
+            name="united", country_id=core_records["england"], gender="Men",
             home_venue_id=core_records["venue"],
         )
 

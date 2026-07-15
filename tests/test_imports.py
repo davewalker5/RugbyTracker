@@ -20,8 +20,8 @@ def test_reference_imports_are_case_insensitive_and_repeatable(service, core_rec
     countries = importer.import_csv(
         "Countries", "name\nEngland\nENGLAND\nScotland\n"
     )
-    assert (countries.imported, countries.skipped, countries.invalid) == (2, 1, 0)
-    assert [row["name"] for row in service.list_countries()] == ["England", "Scotland"]
+    assert (countries.imported, countries.skipped, countries.invalid) == (1, 2, 0)
+    assert {row["name"] for row in service.list_countries()} >= {"England", "Scotland"}
 
     teams = importer.import_csv(
         "Teams",
@@ -47,6 +47,7 @@ def test_reference_imports_are_case_insensitive_and_repeatable(service, core_rec
 
 def test_venue_import_supports_optional_fields_and_skips_duplicates(connection):
     importer = CsvImportService(connection)
+    importer.import_csv("Countries", "name\nEngland\nChanged\n")
     report = importer.import_csv(
         "Venues",
         "name,town city,country\nThe Rec,Bath,England\nTwickenham Stadium,,England\nthe rec,Changed,Changed\n",
@@ -104,6 +105,7 @@ Premiership Rugby,2025/26,,Unknown Referee,2025-09-20,Bath,Bath,Leicester Tigers
         "id": core_records["venue"],
         "name": "The Rec",
         "town_city": "Bath",
+        "country_id": core_records["england"],
         "country": "England",
     }
     assert service.list_teams()[0]["home_venue_id"] == core_records["venue"]
@@ -150,18 +152,18 @@ def test_match_import_uses_country_to_disambiguate_team_names(
     :return: None.
     """
     england = service.save_team(
-        name="United", country="England", gender="Men",
+        name="United", country_id=service.save_country(name="United England"), gender="Men",
         home_venue_id=core_records["venue"],
     )
     scotland = service.save_team(
-        name="United", country="Scotland", gender="Men",
+        name="United", country_id=service.save_country(name="United Scotland"), gender="Men",
         home_venue_id=core_records["away_venue"],
     )
     importer = CsvImportService(connection)
     report = importer.import_csv(
         "Matches",
         """competition,season,venue,date,home_team,home_country,away_team,away_country
-Premiership Rugby,2025/26,The Rec,2026-01-01,United,England,United,Scotland
+Premiership Rugby,2025/26,The Rec,2026-01-01,United,United England,United,United Scotland
 """,
     )
 
@@ -200,6 +202,7 @@ def test_m6n_2026_import_bundle_produces_the_official_final_table(connection):
     importer = CsvImportService(connection)
     root = Path("data/imports/M6N-2026")
     imports = (
+        ("Countries", "countries.csv", 6),
         ("Venues", "venues.csv", 7),
         ("Teams", "teams.csv", 6),
         ("Competitions", "competitions.csv", 1),
@@ -243,6 +246,7 @@ def test_wxv_2026_import_bundles_are_complete_and_repeatable(connection):
     )
     for root, team_count, match_count, ruleset in bundles:
         for entity_type, filename in (
+            ("Countries", "countries.csv"),
             ("Venues", "venues.csv"),
             ("Teams", "teams.csv"),
             ("Competitions", "competitions.csv"),
@@ -265,6 +269,7 @@ def test_wxv_2026_import_bundles_are_complete_and_repeatable(connection):
     # Re-importing every file must leave the stored competition data unchanged.
     for root, _, _, _ in bundles:
         for entity_type, filename in (
+            ("Countries", "countries.csv"),
             ("Venues", "venues.csv"),
             ("Teams", "teams.csv"),
             ("Competitions", "competitions.csv"),
@@ -287,6 +292,7 @@ def test_nations_2026_import_bundle_provides_both_series(connection):
 
     # Import in dependency order so names in later files resolve to stored rows.
     for entity_type, filename in (
+        ("Countries", "countries.csv"),
         ("Venues", "venues.csv"),
         ("Teams", "teams.csv"),
         ("Competitions", "competitions.csv"),
@@ -405,6 +411,7 @@ def test_document_errors_prevent_import(connection):
 
 
 def test_ambiguous_case_insensitive_reference_is_refused(service, connection):
+    service.save_country(name="Bath")
     service.save_venue(name="The Rec")
     service.save_venue(name="the rec")
     importer = CsvImportService(connection)

@@ -246,7 +246,8 @@ def venues_page(service: RugbyService, connection: Any) -> None:
     :param connection: Active database connection for commits.
     :return: None.
     """
-    records = service.list_venues()
+    records, countries = service.list_venues(), service.list_countries()
+    country_options = _options(countries)
 
     def fields(row: dict[str, Any] | None) -> dict[str, Any]:
         """Render venue fields and collect their values.
@@ -257,7 +258,10 @@ def venues_page(service: RugbyService, connection: Any) -> None:
         return {
             "name": st.text_input("Name *", value=row["name"] if row else ""),
             "town_city": st.text_input("Town/City", value=(row["town_city"] or "") if row else ""),
-            "country": st.text_input("Country", value=(row["country"] or "") if row else ""),
+            "country_id": _select(
+                "Country", country_options, row["country_id"] if row else None,
+                optional=True,
+            ),
         }
 
     _entity_page("Venues", "venue", records, fields, service.save_venue,
@@ -273,11 +277,16 @@ def teams_page(service: RugbyService, connection: Any) -> None:
     :return: None.
     """
     records, venues = service.list_teams(), service.list_venues()
+    countries = service.list_countries()
     venue_options = _options(venues)
+    country_options = _options(countries)
     venue_names = {row["id"]: row["name"] for row in venues}
-    if not venues:
+    if not venues or not countries:
         st.header("Teams")
-        st.warning("Add a venue before adding a team.")
+        missing = "countries and venues" if not countries and not venues else (
+            "countries" if not countries else "a venue"
+        )
+        st.warning(f"Import {missing} before adding a team.")
         return
 
     def fields(row: dict[str, Any] | None) -> dict[str, Any]:
@@ -288,8 +297,8 @@ def teams_page(service: RugbyService, connection: Any) -> None:
         """
         return {
             "name": st.text_input("Name *", value=row["name"] if row else ""),
-            "country": st.text_input(
-                "Country *", value=row["country"] if row else ""
+            "country_id": _select(
+                "Country *", country_options, row["country_id"] if row else None
             ),
             "gender": st.selectbox(
                 "Category *",
@@ -591,7 +600,14 @@ def import_page(connection: Any) -> None:
         mime="text/csv",
     )
     if entity_type == "Teams":
-        st.caption("Home venues must already exist and are matched using the home_venue column.")
+        st.caption(
+            "Countries and home venues must already exist and are matched using the "
+            "country and home_venue columns."
+        )
+    elif entity_type == "Venues":
+        st.caption(
+            "A supplied country must already exist and is matched using the country column."
+        )
     elif entity_type == "Matches":
         st.caption(
             "Competitions are matched by name and season. Venues, referees, and teams must "

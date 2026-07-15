@@ -239,14 +239,16 @@ class CsvImportService:
         """
         messages: list[str] = []
         name = self._value(lambda: required_text(row.get("name"), "Team name"), messages)
-        country = self._value(lambda: required_text(row.get("country"), "Country"), messages)
+        country_id = self._resolve(
+            "countries", row.get("country"), "Country", messages
+        )
         gender = self._value(lambda: self._gender(row.get("gender")), messages)
         venue_id = self._resolve("venues", row.get("home_venue"), "Home venue", messages)
         if messages:
             return None, messages
         return {
             "name": name,
-            "country": country,
+            "country_id": country_id,
             "gender": gender,
             "home_venue_id": venue_id,
         }, messages
@@ -271,12 +273,15 @@ class CsvImportService:
         """
         messages: list[str] = []
         name = self._value(lambda: required_text(row.get("name"), "Venue name"), messages)
+        country_id = self._resolve(
+            "countries", row.get("country"), "Country", messages, optional=True
+        )
         if messages:
             return None, messages
         return {
             "name": name,
             "town_city": optional_text(row.get("town_city")),
-            "country": optional_text(row.get("country")),
+            "country_id": country_id,
         }, messages
 
     def _validate_competition(self, row: dict[str, str]) -> tuple[dict[str, Any] | None, list[str]]:
@@ -388,10 +393,11 @@ class CsvImportService:
         for alias in (name, f"{name} {gender}"):
             rows = self.connection.execute(
                 """
-                SELECT id FROM teams
-                WHERE gender = ? AND name = ? COLLATE NOCASE
-                  AND country = ? COLLATE NOCASE
-                ORDER BY id
+                SELECT t.id FROM teams t
+                JOIN countries c ON c.id = t.country_id
+                WHERE t.gender = ? AND t.name = ? COLLATE NOCASE
+                  AND c.name = ? COLLATE NOCASE
+                ORDER BY t.id
                 """,
                 (gender, alias, country),
             ).fetchall()
@@ -418,9 +424,10 @@ class CsvImportService:
         """
         rows = self.connection.execute(
             """
-            SELECT id FROM teams
-            WHERE name = ? COLLATE NOCASE AND country = ? COLLATE NOCASE
-            ORDER BY id
+            SELECT t.id FROM teams t
+            JOIN countries c ON c.id = t.country_id
+            WHERE t.name = ? COLLATE NOCASE AND c.name = ? COLLATE NOCASE
+            ORDER BY t.id
             """,
             (name, country),
         ).fetchall()
@@ -600,7 +607,12 @@ class CsvImportService:
             rows = self.connection.execute(f"SELECT name FROM {table}").fetchall()
             return {(row["name"].casefold(),) for row in rows}
         if entity_type == "Teams":
-            rows = self.connection.execute("SELECT name, country FROM teams").fetchall()
+            rows = self.connection.execute(
+                """
+                SELECT t.name, c.name AS country FROM teams t
+                JOIN countries c ON c.id = t.country_id
+                """
+            ).fetchall()
             return {(row["name"].casefold(), row["country"].casefold()) for row in rows}
         if entity_type == "Competitions":
             rows = self.connection.execute("SELECT name, season, gender FROM competitions").fetchall()
@@ -718,8 +730,9 @@ class CsvImportService:
         ).fetchall()
         return int(rows[0]["id"]) if len(rows) == 1 else None
 
-    @staticmethod
-    def _duplicate_key(entity_type: str, values: dict[str, Any]) -> tuple[Any, ...]:
+    def _duplicate_key(
+        self, entity_type: str, values: dict[str, Any]
+    ) -> tuple[Any, ...]:
         """Build a practical duplicate key for one prepared row.
 
         :param entity_type: Supported entity type being imported.
@@ -729,7 +742,8 @@ class CsvImportService:
         if entity_type in {"Countries", "Venues"}:
             return (values["name"].casefold(),)
         if entity_type == "Teams":
-            return values["name"].casefold(), values["country"].casefold()
+            country = self._country_name(values["country_id"])
+            return values["name"].casefold(), country.casefold()
         if entity_type == "Competitions":
             return values["name"].casefold(), values["season"].casefold(), values["gender"].casefold()
         if entity_type == "Referees":
@@ -738,6 +752,18 @@ class CsvImportService:
             values["competition_id"], values["match_date"],
             values["home_team_id"], values["away_team_id"],
         )
+
+    def _country_name(self, country_id: int) -> str:
+        """Return the country name used in a prepared team's duplicate key.
+
+        :param country_id: Resolved country identifier.
+        :return: Country name stored for that identifier.
+        """
+        country = self.connection.execute(
+            "SELECT name FROM countries WHERE id = ?", (country_id,)
+        ).fetchone()
+        assert country is not None
+        return str(country["name"])
 
     def _persist(self, entity_type: str, values: dict[str, Any]) -> int:
         """Persist one validated import row through the business service.

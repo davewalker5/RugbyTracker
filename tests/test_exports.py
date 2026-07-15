@@ -33,10 +33,12 @@ def test_csv_exports_use_import_schemas_and_related_names(
     )
     exporter = CsvExportService(connection)
 
-    service.save_country(name="England")
+    # Core fixtures already create the country records required by their references.
 
     exported = {entity_type: exporter.export_csv(entity_type) for entity_type in EXPORT_TYPES}
-    assert list(csv.DictReader(io.StringIO(exported["Countries"]))) == [{"name": "England"}]
+    assert {row["name"] for row in csv.DictReader(io.StringIO(exported["Countries"]))} == {
+        "Bath", "England", "Leicester Tigers",
+    }
     assert list(csv.DictReader(io.StringIO(exported["Venues"])))[0]["name"] == "The Rec"
     assert list(csv.DictReader(io.StringIO(exported["Teams"])))[0]["home_venue"] == "The Rec"
     assert list(csv.DictReader(io.StringIO(exported["Teams"])))[0]["country"] == "Bath"
@@ -74,13 +76,14 @@ def test_competition_filter_exports_only_related_records(
     :return: None.
     """
     neutral_venue = service.save_venue(
-        name="Neutral Ground", town_city="London", country="England"
+        name="Neutral Ground", town_city="London", country_id=core_records["england"]
     )
+    france = service.save_country(name="France")
     unrelated_venue = service.save_venue(
-        name="Unrelated Ground", town_city="Paris", country="France"
+        name="Unrelated Ground", town_city="Paris", country_id=france
     )
     unrelated_team = service.save_team(
-        name="Unrelated", country="France", gender="Men",
+        name="Unrelated", country_id=france, gender="Men",
         home_venue_id=unrelated_venue,
     )
     unrelated_competition = service.save_competition(
@@ -116,6 +119,9 @@ def test_competition_filter_exports_only_related_records(
         )))
 
     assert {row["name"] for row in rows("Competitions")} == {"Premiership Rugby"}
+    assert {row["name"] for row in rows("Countries")} == {
+        "Bath", "England", "Leicester Tigers",
+    }
     assert {row["name"] for row in rows("Teams")} == {"Bath", "Leicester Tigers"}
     assert {row["name"] for row in rows("Referees")} == {"Luke Pearce"}
     assert {row["name"] for row in rows("Venues")} == {

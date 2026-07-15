@@ -19,7 +19,8 @@ def test_database_is_empty_after_first_migration(connection):
     team_columns = {
         row["name"] for row in connection.execute("PRAGMA table_info(teams)").fetchall()
     }
-    assert "country" in team_columns
+    assert "country_id" in team_columns
+    assert "country" not in team_columns
     assert connection.execute(
         "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'standings'"
     ).fetchone()[0] == 0
@@ -120,7 +121,12 @@ def test_team_country_migration_backfills_from_competition_membership(tmp_path):
     migrated = connect(database)
     countries = {
         row["name"].strip(): row["country"]
-        for row in migrated.execute("SELECT name, country FROM teams")
+        for row in migrated.execute(
+            """
+            SELECT t.name, c.name AS country FROM teams t
+            JOIN countries c ON c.id = t.country_id
+            """
+        )
     }
     assert countries["Harlequins Women"] == "England"
     assert countries["England Women"] == "England"

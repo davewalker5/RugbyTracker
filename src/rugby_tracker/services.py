@@ -124,19 +124,22 @@ class RugbyService:
 
         :return: Venue rows represented as dictionaries.
         """
-        return self.repo.venues.list_all()
+        return self.repo.list_venues()
 
     def save_venue(self, entity_id: int | None = None, **values: Any) -> int:
         """Create or update a venue after validating its fields.
 
         :param entity_id: Existing venue identifier, or ``None`` to create one.
-        :param values: Venue fields including name, town/city, and country.
+        :param values: Venue fields including name, town/city, and country identifier.
         :return: The saved venue's identifier.
         """
         data = {
             "name": required_text(values.get("name"), "Venue name"),
             "town_city": optional_text(values.get("town_city")),
-            "country": optional_text(values.get("country")),
+            "country_id": (
+                self._foreign_key(self.repo.countries, values.get("country_id"), "Country")
+                if values.get("country_id") not in (None, "") else None
+            ),
         }
         return self._save(self.repo.venues, entity_id, data)
 
@@ -145,34 +148,36 @@ class RugbyService:
 
         :return: Team rows represented as dictionaries.
         """
-        return self.repo.teams.list_all()
+        return self.repo.list_teams()
 
     def save_team(self, entity_id: int | None = None, **values: Any) -> int:
         """Create or update a team after validating its fields.
 
         :param entity_id: Existing team identifier, or ``None`` to create one.
-        :param values: Team fields including name, country, category, and home venue.
+        :param values: Team fields including name, country identifier, category, and home venue.
         :return: The saved team's identifier.
         :raises ValidationError: If the name and country identify another team.
         """
         name = required_text(values.get("name"), "Team name")
-        country = required_text(values.get("country"), "Country")
         gender = valid_gender(values.get("gender"))
+        country_id = self._foreign_key(
+            self.repo.countries, values.get("country_id"), "Country"
+        )
         venue_id = self._foreign_key(self.repo.venues, values.get("home_venue_id"), "Home venue")
         # Team identity is deliberately independent of gender and home venue.
         duplicate = self.repo.connection.execute(
             """
             SELECT id FROM teams
-            WHERE name = ? COLLATE NOCASE AND country = ? COLLATE NOCASE
+            WHERE name = ? COLLATE NOCASE AND country_id = ?
               AND id <> COALESCE(?, -1)
             """,
-            (name, country, entity_id),
+            (name, country_id, entity_id),
         ).fetchone()
         if duplicate:
             raise ValidationError("A team with this name and country already exists.")
         data = {
             "name": name,
-            "country": country,
+            "country_id": country_id,
             "gender": gender,
             "home_venue_id": venue_id,
         }

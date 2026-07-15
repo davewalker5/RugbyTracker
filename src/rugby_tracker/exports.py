@@ -71,11 +71,27 @@ class CsvExportService:
     def _country_rows(self, competition_id: int | None) -> list[dict[str, Any]]:
         """Build standalone country rows in import-column order.
 
-        :param competition_id: Unused competition filter retained for builder consistency.
+        :param competition_id: Optional competition limiting referenced countries.
         :return: Country dictionaries ready for CSV writing.
         """
-        # Countries are not referenced by existing entities yet, so all are exported.
-        return self.rugby.list_countries()
+        if competition_id is None:
+            return self.rugby.list_countries()
+        team_ids = self._team_ids(competition_id)
+        venue_ids = {int(row["id"]) for row in self._venue_rows(competition_id)}
+        country_ids = {
+            int(row["country_id"])
+            for row in self.rugby.list_teams()
+            if int(row["id"]) in team_ids
+        }
+        country_ids.update(
+            int(row["country_id"])
+            for row in self.rugby.list_venues()
+            if int(row["id"]) in venue_ids and row["country_id"] is not None
+        )
+        return [
+            row for row in self.rugby.list_countries()
+            if int(row["id"]) in country_ids
+        ]
 
     def _venue_rows(self, competition_id: int | None) -> list[dict[str, Any]]:
         """Build venue rows in import-column order.

@@ -45,7 +45,9 @@ def test_cli_exports_records_to_the_requested_path(monkeypatch, tmp_path, capsys
     monkeypatch.setenv("RUGBY_TRACKER_DB", str(database))
     apply_migrations(database)
     connection = connect(database)
-    RugbyService(connection).save_venue(name="The Rec", town_city="Bath", country="England")
+    service = RugbyService(connection)
+    england = service.save_country(name="England")
+    service.save_venue(name="The Rec", town_city="Bath", country_id=england)
     connection.commit()
     connection.close()
 

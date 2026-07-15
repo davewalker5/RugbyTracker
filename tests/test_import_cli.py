@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from rugby_tracker.database import connect
+from rugby_tracker.database import apply_migrations, connect
 from rugby_tracker.import_cli import build_parser, main
 
 
@@ -22,6 +22,11 @@ def test_cli_imports_valid_csv(monkeypatch, tmp_path, capsys):
     csv_file = tmp_path / "venues.csv"
     csv_file.write_text("name,town_city,country\nThe Rec,Bath,England\n", encoding="utf-8")
     monkeypatch.setenv("RUGBY_TRACKER_DB", str(database))
+    apply_migrations(database)
+    connection = connect(database)
+    connection.execute("INSERT INTO countries(name) VALUES ('England')")
+    connection.commit()
+    connection.close()
 
     result = main(("-t", "venues", "-i", str(csv_file)))
 

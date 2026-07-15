@@ -143,16 +143,19 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     apply_migrations(database)
     connection = connect(database)
     service = RugbyService(connection)
-    venue = service.save_venue(name="The Rec")
+    bath_country = service.save_country(name="Bath")
+    leicester_country = service.save_country(name="Leicester Tigers")
+    england = service.save_country(name="England")
+    venue = service.save_venue(name="The Rec", country_id=england)
     home = service.save_team(
-        name="Bath", country="Bath", gender="Men", home_venue_id=venue
+        name="Bath", country_id=bath_country, gender="Men", home_venue_id=venue
     )
     away = service.save_team(
-        name="Leicester Tigers", country="Leicester Tigers", gender="Men",
+        name="Leicester Tigers", country_id=leicester_country, gender="Men",
         home_venue_id=venue,
     )
     service.save_team(
-        name="Bath Women", country="England", gender="Women", home_venue_id=venue
+        name="Bath Women", country_id=england, gender="Women", home_venue_id=venue
     )
     competition = service.save_competition(
         name="PREM", season="2025/26", gender="Men", ruleset="prem_2025_26"
@@ -246,7 +249,8 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
             # Selecting a team populates both editable identity fields.
             app.session_state["team_table"] = {"selection": {"rows": [0]}}
             app.run()
-            assert [field.value for field in app.text_input[:2]] == ["Bath", "Bath"]
+            assert app.text_input[0].value == "Bath"
+            assert app.selectbox[1].value == bath_country
 
     app.radio[0].set_value("CSV Import").run()
     assert not app.exception
@@ -267,7 +271,11 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
         "Men and Women", "Men", "prem_2025_26"
     ]
 
-    for page in ("Venues", "Referees"):
-        app.radio[0].set_value(page).run()
-        assert not app.exception, page
-        assert not app.selectbox, page
+    app.radio[0].set_value("Venues").run()
+    assert not app.exception
+    assert len(app.selectbox) == 1
+    assert app.selectbox[0].label == "Country"
+
+    app.radio[0].set_value("Referees").run()
+    assert not app.exception
+    assert not app.selectbox
