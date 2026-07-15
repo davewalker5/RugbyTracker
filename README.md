@@ -109,6 +109,8 @@ The report includes:
 
 Reports can also be exported as formatted PDF documents for sharing or offline reference.
 
+---
+
 ## Data Exchange Features
 
 ### CSV Import
