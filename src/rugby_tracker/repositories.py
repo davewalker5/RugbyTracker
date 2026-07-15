@@ -137,11 +137,13 @@ class RugbyRepository:
 
         :return: Team rows containing both country identifier and name.
         """
+        # Include display-ready reference names needed by maintenance and analysis pages.
         rows = self.connection.execute(
             """
-            SELECT t.*, c.name AS country
+            SELECT t.*, c.name AS country, v.name AS home_venue
             FROM teams t
             JOIN countries c ON c.id = t.country_id
+            LEFT JOIN venues v ON v.id = t.home_venue_id
             ORDER BY t.name COLLATE NOCASE, t.id
             """
         ).fetchall()
