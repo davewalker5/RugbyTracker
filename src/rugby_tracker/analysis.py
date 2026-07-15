@@ -17,6 +17,7 @@ from reportlab.graphics.charts.barcharts import VerticalBarChart
 from reportlab.graphics.charts.legends import Legend
 from reportlab.graphics.charts.linecharts import HorizontalLineChart
 from reportlab.graphics.shapes import Drawing, String
+from reportlab.graphics.widgets.markers import makeMarker
 from reportlab.platypus import (
     KeepTogether,
     PageBreak,
@@ -279,6 +280,185 @@ class CompetitionSummaryReport:
         return max(self.matches, key=lambda match: match.winning_margin, default=None)
 
 
+@dataclass(frozen=True)
+class HeadToHeadMatchResult:
+    """One completed meeting represented from Team A's perspective."""
+
+    round: str
+    match_date: str
+    competition: str
+    season: str
+    venue: str
+    home_team: str
+    away_team: str
+    home_score: int
+    away_score: int
+    team_a_points: int
+    team_b_points: int
+    team_a_tries: int | None
+    team_b_tries: int | None
+
+    @property
+    def score(self) -> str:
+        """Return the final score in home-team-first order.
+
+        :return: Formatted home and away score.
+        """
+        return f"{self.home_score}–{self.away_score}"
+
+    @property
+    def margin(self) -> int:
+        """Return a Team A-positive winning margin.
+
+        :return: Signed points margin.
+        """
+        return self.team_a_points - self.team_b_points
+
+    @property
+    def winner(self) -> str:
+        """Return the winning side marker, or ``Draw``.
+
+        :return: ``A``, ``B``, or ``Draw``.
+        """
+        return "A" if self.margin > 0 else "B" if self.margin < 0 else "Draw"
+
+    @property
+    def total_points(self) -> int:
+        """Return the combined score.
+
+        :return: Total match points.
+        """
+        return self.team_a_points + self.team_b_points
+
+
+@dataclass(frozen=True)
+class HeadToHeadReport:
+    """Structured historical comparison shared by the UI and PDF export."""
+
+    competition: str
+    season: str
+    team_a_id: int
+    team_a: str
+    team_b_id: int
+    team_b: str
+    matches: tuple[HeadToHeadMatchResult, ...]
+
+    @property
+    def meetings(self) -> int:
+        """Return the number of completed meetings.
+
+        :return: Meeting count.
+        """
+        return len(self.matches)
+
+    @property
+    def team_a_wins(self) -> int:
+        """Return Team A's wins.
+
+        :return: Win count.
+        """
+        return sum(match.winner == "A" for match in self.matches)
+
+    @property
+    def team_b_wins(self) -> int:
+        """Return Team B's wins.
+
+        :return: Win count.
+        """
+        return sum(match.winner == "B" for match in self.matches)
+
+    @property
+    def draws(self) -> int:
+        """Return drawn meetings.
+
+        :return: Draw count.
+        """
+        return sum(match.winner == "Draw" for match in self.matches)
+
+    @property
+    def team_a_points(self) -> int:
+        """Return Team A's total points.
+
+        :return: Points total.
+        """
+        return sum(match.team_a_points for match in self.matches)
+
+    @property
+    def team_b_points(self) -> int:
+        """Return Team B's total points.
+
+        :return: Points total.
+        """
+        return sum(match.team_b_points for match in self.matches)
+
+    @property
+    def team_a_tries(self) -> int | None:
+        """Return Team A's tries when every match has try data.
+
+        :return: Tries total, or ``None``.
+        """
+        values = [match.team_a_tries for match in self.matches]
+        return sum(int(value) for value in values) if all(value is not None for value in values) else None
+
+    @property
+    def team_b_tries(self) -> int | None:
+        """Return Team B's tries when every match has try data.
+
+        :return: Tries total, or ``None``.
+        """
+        values = [match.team_b_tries for match in self.matches]
+        return sum(int(value) for value in values) if all(value is not None for value in values) else None
+
+    @property
+    def largest_team_a_victory(self) -> HeadToHeadMatchResult | None:
+        """Return Team A's largest victory.
+
+        :return: Largest victory, or ``None``.
+        """
+        return max((match for match in self.matches if match.margin > 0), key=lambda match: match.margin, default=None)
+
+    @property
+    def largest_team_b_victory(self) -> HeadToHeadMatchResult | None:
+        """Return Team B's largest victory.
+
+        :return: Largest victory, or ``None``.
+        """
+        return min((match for match in self.matches if match.margin < 0), key=lambda match: match.margin, default=None)
+
+    @property
+    def highest_scoring(self) -> HeadToHeadMatchResult | None:
+        """Return the highest-scoring meeting.
+
+        :return: Highest-scoring match, or ``None``.
+        """
+        return max(self.matches, key=lambda match: match.total_points, default=None)
+
+    @property
+    def closest_matches(self) -> tuple[HeadToHeadMatchResult, ...]:
+        """Return meetings decided by seven points or fewer.
+
+        :return: Chronological close matches.
+        """
+        return tuple(match for match in self.matches if abs(match.margin) <= 7)
+
+    @property
+    def current_streak(self) -> str:
+        """Describe the latest run of results.
+
+        :return: Supporter-friendly streak description.
+        """
+        latest = self.matches[-1].winner
+        if latest == "Draw":
+            return "The teams drew their latest meeting."
+        count = 0
+        for match in reversed(self.matches):
+            if match.winner != latest:
+                break
+            count += 1
+        team = self.team_a if latest == "A" else self.team_b
+        return f"{team} won the latest meeting." if count == 1 else f"{team} has won the last {count} meetings."
+
+
 def _location_record(matches: list[TeamMatchResult], location: str) -> dict[str, int]:
     """Aggregate completed matches for one stored home/away designation.
 
@@ -435,6 +615,82 @@ def build_competition_summary(
     )
 
 
+def build_head_to_head(
+    competitions: list[dict[str, Any]], team_a: dict[str, Any],
+    team_b: dict[str, Any], matches: list[dict[str, Any]],
+) -> HeadToHeadReport:
+    """Calculate every completed meeting between two selected teams.
+
+    :param competitions: Selected season records for one competition.
+    :param team_a: First selected team record.
+    :param team_b: Second selected team record.
+    :param matches: Enriched matches across the selected seasons.
+    :return: Structured Head-to-Head report.
+    """
+    if not competitions:
+        raise ValueError("Select a valid competition and season.")
+    team_a_id, team_b_id = int(team_a["id"]), int(team_b["id"])
+    if team_a_id == team_b_id:
+        raise ValueError("Select two different teams.")
+    meetings: list[HeadToHeadMatchResult] = []
+    for match in matches:
+        sides = {int(match["home_team_id"]), int(match["away_team_id"])}
+        if sides != {team_a_id, team_b_id}:
+            continue
+        if match["home_score"] is None or match["away_score"] is None:
+            continue
+        a_is_home = int(match["home_team_id"]) == team_a_id
+        meetings.append(HeadToHeadMatchResult(
+            round=str(match.get("round") or "—"),
+            match_date=str(match["match_date"]),
+            competition=str(match["competition_name"]),
+            season=str(match["competition_season"]),
+            venue=str(match.get("venue_name") or "Not recorded"),
+            home_team=str(match["home_team_name"]),
+            away_team=str(match["away_team_name"]),
+            home_score=int(match["home_score"]),
+            away_score=int(match["away_score"]),
+            team_a_points=int(match["home_score"] if a_is_home else match["away_score"]),
+            team_b_points=int(match["away_score"] if a_is_home else match["home_score"]),
+            team_a_tries=int(match["home_tries"] if a_is_home else match["away_tries"]),
+            team_b_tries=int(match["away_tries"] if a_is_home else match["home_tries"]),
+        ))
+    if not meetings:
+        raise ValueError("No completed meetings exist between the selected teams.")
+    seasons = {str(row["season"]) for row in competitions}
+    return HeadToHeadReport(
+        competition=str(competitions[0]["name"]),
+        season=next(iter(seasons)) if len(seasons) == 1 else "All Seasons",
+        team_a_id=team_a_id, team_a=str(team_a["name"]),
+        team_b_id=team_b_id, team_b=str(team_b["name"]),
+        matches=tuple(sorted(meetings, key=lambda match: match.match_date)),
+    )
+
+
+def head_to_head_host_record(report: HeadToHeadReport, host: str) -> dict[str, Any]:
+    """Aggregate results and average scoring for matches hosted by one team.
+
+    :param report: Calculated Head-to-Head report.
+    :param host: Team name whose hosted matches should be included.
+    :return: Host result counts and scoring averages.
+    """
+    if host not in (report.team_a, report.team_b):
+        raise ValueError("Host must be one of the report teams.")
+    hosted = [match for match in report.matches if match.home_team == host]
+    host_is_a = host == report.team_a
+    scored = [match.team_a_points if host_is_a else match.team_b_points for match in hosted]
+    conceded = [match.team_b_points if host_is_a else match.team_a_points for match in hosted]
+    win_marker = "A" if host_is_a else "B"
+    return {
+        "Host": host, "P": len(hosted),
+        "W": sum(match.winner == win_marker for match in hosted),
+        "D": sum(match.winner == "Draw" for match in hosted),
+        "L": sum(match.winner not in (win_marker, "Draw") for match in hosted),
+        "Average points scored": sum(scored) / len(scored) if scored else 0.0,
+        "Average points conceded": sum(conceded) / len(conceded) if conceded else 0.0,
+    }
+
+
 def competition_team_rankings(report: CompetitionSummaryReport) -> list[dict[str, Any]]:
     """Return the leading team or teams for each supporter-focused measure.
 
@@ -497,6 +753,17 @@ def competition_summary_filename(report: CompetitionSummaryReport) -> str:
     parts = [report.competition, report.season]
     slug = "_".join(re.sub(r"[^a-z0-9]+", "-", part.casefold()).strip("-") for part in parts)
     return f"competition-summary_{slug}.pdf"
+
+
+def head_to_head_filename(report: HeadToHeadReport) -> str:
+    """Create a predictable filesystem-safe Head-to-Head PDF filename.
+
+    :param report: Head-to-Head report whose identity belongs in the filename.
+    :return: Normalised filename ending in ``.pdf``.
+    """
+    parts = [report.team_a, report.team_b, report.competition, report.season]
+    slug = "_".join(re.sub(r"[^a-z0-9]+", "-", part.casefold()).strip("-") for part in parts)
+    return f"head-to-head_{slug}.pdf"
 
 
 def team_summary_filename(report: TeamSummaryReport) -> str:
@@ -738,6 +1005,133 @@ def render_competition_summary_pdf(report: CompetitionSummaryReport) -> bytes:
 
         :param canvas: ReportLab canvas for the current page.
         :param doc: Active ReportLab document template.
+        :return: None.
+        """
+        canvas.saveState()
+        canvas.setFont("Helvetica", 8)
+        canvas.drawRightString(A4[0] - 14 * mm, 8 * mm, f"Page {doc.page}")
+        canvas.restoreState()
+
+    document.build(story, onFirstPage=add_page_number, onLaterPages=add_page_number)
+    return output.getvalue()
+
+
+def render_head_to_head_pdf(report: HeadToHeadReport) -> bytes:
+    """Render a Head-to-Head report as a paginated A4 PDF.
+
+    :param report: Structured report to render.
+    :return: Complete PDF document bytes.
+    """
+    output = io.BytesIO()
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(
+        name="HeadToHeadTitle", parent=styles["Title"], alignment=TA_CENTER,
+        textColor=colors.HexColor("#17365d"),
+    ))
+    document = SimpleDocTemplate(
+        output, pagesize=A4, rightMargin=14 * mm, leftMargin=14 * mm,
+        topMargin=15 * mm, bottomMargin=15 * mm,
+    )
+    story: list[Any] = [
+        Paragraph("Head-to-Head Report", styles["HeadToHeadTitle"]),
+        Paragraph(f"{report.team_a} v {report.team_b} · {report.competition} · {report.season}", styles["Heading2"]),
+        Paragraph(f"Generated {date.today().strftime('%d %B %Y')}", styles["Normal"]),
+        Spacer(1, 5 * mm),
+    ]
+
+    def section(title: str, rows: list[list[Any]], keep: bool = True) -> None:
+        """Append a consistently styled table section.
+
+        :param title: Section heading.
+        :param rows: Two-dimensional display values.
+        :param keep: Whether short content should remain on one page.
+        :return: None.
+        """
+        table = Table(rows, repeatRows=1, hAlign="LEFT")
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#d9eaf7")),
+            ("GRID", (0, 0), (-1, -1), 0.35, colors.grey),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        content = [Paragraph(title, styles["Heading2"]), table, Spacer(1, 4 * mm)]
+        story.extend([KeepTogether(content)] if keep and len(rows) <= 8 else content)
+
+    section("Fixture summary", [
+        ["Competition", "Season", "Team A", "Team B", "Meetings"],
+        [report.competition, report.season, report.team_a, report.team_b, report.meetings],
+    ])
+    section("Overall record", [
+        ["Statistic", report.team_a, report.team_b],
+        ["Wins", report.team_a_wins, report.team_b_wins],
+        ["Draws", report.draws, report.draws],
+        ["Losses", report.team_b_wins, report.team_a_wins],
+        ["Win percentage", f"{report.team_a_wins / report.meetings:.1%}", f"{report.team_b_wins / report.meetings:.1%}"],
+        ["Points scored", report.team_a_points, report.team_b_points],
+        ["Points conceded", report.team_b_points, report.team_a_points],
+        ["Tries scored", report.team_a_tries if report.team_a_tries is not None else "Unavailable", report.team_b_tries if report.team_b_tries is not None else "Unavailable"],
+    ])
+    host_records = [head_to_head_host_record(report, team) for team in (report.team_a, report.team_b)]
+    section("Home and away record", [
+        ["Host", "P", "W", "D", "L", "Avg scored", "Avg conceded"],
+        *[[row["Host"], row["P"], row["W"], row["D"], row["L"], f"{row['Average points scored']:.1f}", f"{row['Average points conceded']:.1f}"] for row in host_records],
+    ])
+
+    points_chart = Drawing(170 * mm, 72 * mm)
+    points_chart.add(String(0, 65 * mm, "Points scored by meeting", fontName="Helvetica-Bold", fontSize=11))
+    lines = HorizontalLineChart()
+    lines.x, lines.y, lines.width, lines.height = 15 * mm, 22 * mm, 140 * mm, 35 * mm
+    lines.data = [[match.team_a_points for match in report.matches], [match.team_b_points for match in report.matches]]
+    lines.categoryAxis.categoryNames = [str(index) for index in range(1, report.meetings + 1)]
+    lines.lines[0].strokeColor = colors.HexColor("#4472c4")
+    lines.lines[1].strokeColor = colors.HexColor("#c55a11")
+    # A single meeting has no line segment, so markers are required to make its
+    # two scores visible. They also make longer series easier to read precisely.
+    lines.lines[0].symbol = makeMarker("FilledCircle")
+    lines.lines[1].symbol = makeMarker("FilledCircle")
+    lines.lineLabelFormat = "%d"
+    lines.lineLabels.fontSize = 8
+    lines.lineLabelNudge = 6
+    points_chart.add(lines)
+    legend = Legend()
+    legend.x, legend.y = 50 * mm, 9 * mm
+    legend.colorNamePairs = [(colors.HexColor("#4472c4"), report.team_a), (colors.HexColor("#c55a11"), report.team_b)]
+    points_chart.add(legend)
+    story.extend([PageBreak(), Paragraph("Visualisations", styles["Heading2"]), points_chart])
+
+    def match_context(match: HeadToHeadMatchResult | None) -> str:
+        """Format a notable meeting for display.
+
+        :param match: Qualifying match, when one exists.
+        :return: Concise match description.
+        """
+        if match is None:
+            return "No qualifying result"
+        return f"{match.match_date} · {match.venue} · {match.home_team} {match.score} {match.away_team}"
+
+    section("Notable matches", [
+        ["Measure", "Match"],
+        [f"Largest {report.team_a} victory", match_context(report.largest_team_a_victory)],
+        [f"Largest {report.team_b} victory", match_context(report.largest_team_b_victory)],
+        ["Highest-scoring match", match_context(report.highest_scoring)],
+        ["Current streak", report.current_streak],
+    ])
+    section("Match history", [
+        ["Date", "Season", "Round", "Venue", "Home", "Away", "Score", "Winner"],
+        *[[match.match_date, match.season, match.round, match.venue, match.home_team,
+           match.away_team, match.score,
+           report.team_a if match.winner == "A" else report.team_b if match.winner == "B" else "Draw"]
+          for match in report.matches],
+    ], keep=False)
+
+    def add_page_number(canvas: Any, doc: Any) -> None:
+        """Draw the current page number in the footer.
+
+        :param canvas: ReportLab canvas for the current page.
+        :param doc: Active document template.
         :return: None.
         """
         canvas.saveState()

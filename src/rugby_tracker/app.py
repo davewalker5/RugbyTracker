@@ -12,11 +12,15 @@ from pandas.io.formats.style import Styler
 
 from rugby_tracker.analysis import (
     CompetitionSummaryReport,
+    HeadToHeadReport,
     TeamSummaryReport,
     competition_round_summary,
     competition_summary_filename,
     competition_team_rankings,
+    head_to_head_filename,
+    head_to_head_host_record,
     render_competition_summary_pdf,
+    render_head_to_head_pdf,
     render_team_summary_pdf,
     team_summary_filename,
 )
@@ -59,6 +63,24 @@ def _clear_competition_analysis_season() -> None:
     :return: None.
     """
     st.session_state.pop("competition_analysis_season", None)
+
+
+def _clear_head_to_head_selections() -> None:
+    """Clear dependent Head-to-Head selectors after competition changes.
+
+    :return: None.
+    """
+    for key in ("head_to_head_season", "head_to_head_team_a", "head_to_head_team_b"):
+        st.session_state.pop(key, None)
+
+
+def _clear_head_to_head_teams() -> None:
+    """Clear selected teams after the Head-to-Head season changes.
+
+    :return: None.
+    """
+    st.session_state.pop("head_to_head_team_a", None)
+    st.session_state.pop("head_to_head_team_b", None)
 
 
 def _filter_by_gender(
@@ -129,6 +151,7 @@ def _select(
     optional: bool = False,
     placeholder: str | None = None,
     key: str | None = None,
+    on_change: Callable[[], None] | None = None,
 ) -> int | None:
     """Render an entity selection widget.
 
@@ -138,6 +161,7 @@ def _select(
     :param optional: Whether the placeholder should identify the field as optional.
     :param placeholder: Optional placeholder override for the empty state.
     :param key: Optional stable Streamlit widget key.
+    :param on_change: Optional callback invoked when the selection changes.
     :return: The selected identifier, or ``None`` while no option is selected.
     """
     keys = list(options)
@@ -152,6 +176,7 @@ def _select(
         format_func=lambda key: "—" if key is None else options[key],
         placeholder=empty_label,
         key=key,
+        on_change=on_change,
     )
 
 
@@ -725,6 +750,114 @@ def _render_competition_summary(report: CompetitionSummaryReport) -> None:
     } for match in closest]), hide_index=True, width="stretch")
 
 
+def _render_head_to_head(report: HeadToHeadReport) -> None:
+    """Render a structured Head-to-Head report in Streamlit.
+
+    :param report: Calculated report shared with the PDF renderer.
+    :return: None.
+    """
+    st.header(f"{report.team_a} v {report.team_b}")
+    st.caption(f"{report.competition} · {report.season}")
+    st.download_button(
+        "Download PDF", render_head_to_head_pdf(report),
+        file_name=head_to_head_filename(report), mime="application/pdf",
+        type="primary", key="head_to_head_pdf",
+    )
+
+    st.subheader("Fixture summary")
+    _metric_cards([
+        ("Competition", report.competition), ("Season", report.season),
+        ("Team A", report.team_a), ("Team B", report.team_b),
+        ("Meetings", report.meetings),
+    ])
+
+    st.subheader("Overall head-to-head record")
+    tries_a = report.team_a_tries if report.team_a_tries is not None else "Unavailable"
+    tries_b = report.team_b_tries if report.team_b_tries is not None else "Unavailable"
+    st.dataframe(pd.DataFrame({
+        "Statistic": ["Wins", "Draws", "Losses", "Win percentage", "Points scored", "Points conceded", "Tries scored", "Tries conceded"],
+        report.team_a: [str(report.team_a_wins), str(report.draws), str(report.team_b_wins),
+                        f"{report.team_a_wins / report.meetings:.1%}", str(report.team_a_points),
+                        str(report.team_b_points), str(tries_a), str(tries_b)],
+        report.team_b: [str(report.team_b_wins), str(report.draws), str(report.team_a_wins),
+                        f"{report.team_b_wins / report.meetings:.1%}", str(report.team_b_points),
+                        str(report.team_a_points), str(tries_b), str(tries_a)],
+    }), hide_index=True, width="stretch")
+
+    st.subheader("Home and away record")
+    host_rows = [head_to_head_host_record(report, team) for team in (report.team_a, report.team_b)]
+    for row in host_rows:
+        row["Average points scored"] = round(row["Average points scored"], 1)
+        row["Average points conceded"] = round(row["Average points conceded"], 1)
+    st.dataframe(pd.DataFrame(host_rows), hide_index=True, width="stretch")
+
+    st.subheader("Match history")
+    history = pd.DataFrame([{
+        "Date": match.match_date, "Competition": match.competition,
+        "Season": match.season, "Round": match.round, "Venue": match.venue,
+        "Home": match.home_team, "Away": match.away_team, "Score": match.score,
+        "Winner": report.team_a if match.winner == "A" else report.team_b if match.winner == "B" else "Draw",
+    } for match in report.matches])
+    st.dataframe(history, hide_index=True, width="stretch")
+
+    st.subheader("Results timeline")
+    timeline = pd.DataFrame({
+        report.team_a: [1 if match.winner == "A" else 0 for match in report.matches],
+        "Draw": [1 if match.winner == "Draw" else 0 for match in report.matches],
+        report.team_b: [1 if match.winner == "B" else 0 for match in report.matches],
+    }, index=[match.match_date for match in report.matches])
+    st.bar_chart(timeline, y_label="Outcome")
+
+    st.subheader("Points comparison")
+    points = pd.DataFrame({
+        report.team_a: [match.team_a_points for match in report.matches],
+        report.team_b: [match.team_b_points for match in report.matches],
+    }, index=[match.match_date for match in report.matches])
+    st.line_chart(points, y_label="Points")
+
+    st.subheader("Winning margin")
+    margins = pd.DataFrame({
+        "Margin": [match.margin for match in report.matches]
+    }, index=[match.match_date for match in report.matches])
+    st.bar_chart(margins, y_label=f"Positive = {report.team_a}; negative = {report.team_b}")
+
+    st.subheader("Average scores")
+    _metric_cards([
+        (f"{report.team_a} average", f"{report.team_a_points / report.meetings:.1f}"),
+        (f"{report.team_b} average", f"{report.team_b_points / report.meetings:.1f}"),
+        ("Average combined score", f"{(report.team_a_points + report.team_b_points) / report.meetings:.1f}"),
+    ])
+
+    def context(match: Any) -> str:
+        """Format a notable meeting for the results table.
+
+        :param match: Qualifying match, when one exists.
+        :return: Concise match description.
+        """
+        if match is None:
+            return "No qualifying result"
+        return f"{match.match_date} · {match.competition} {match.season} · {match.venue} · {match.home_team} {match.score} {match.away_team}"
+
+    st.subheader("Notable matches")
+    st.dataframe(pd.DataFrame([
+        {"Highlight": f"Largest {report.team_a} victory", "Match": context(report.largest_team_a_victory)},
+        {"Highlight": f"Largest {report.team_b} victory", "Match": context(report.largest_team_b_victory)},
+        {"Highlight": "Highest-scoring match", "Match": context(report.highest_scoring)},
+    ]), hide_index=True, width="stretch")
+
+    st.subheader("Closest matches")
+    if report.closest_matches:
+        st.dataframe(pd.DataFrame([{
+            "Date": match.match_date, "Home": match.home_team, "Away": match.away_team,
+            "Score": match.score, "Margin": abs(match.margin),
+            "Three points or fewer": abs(match.margin) <= 3,
+        } for match in report.closest_matches]), hide_index=True, width="stretch")
+    else:
+        st.info("No meetings were decided by one score (seven points) or fewer.")
+    st.subheader("Current streak")
+    st.write(f"**{report.current_streak}**")
+
+
 def _render_team_summary(report: TeamSummaryReport) -> None:
     """Render a structured team summary in Streamlit.
 
@@ -830,13 +963,15 @@ def _render_team_summary(report: TeamSummaryReport) -> None:
 
 
 def analysis_page(service: RugbyService) -> None:
-    """Render the Competition Summary and Team Summary analysis reports.
+    """Render the supporter-focused analysis reports.
 
     :param service: Business service used to query and calculate reports.
     :return: None.
     """
     st.header("Analysis")
-    competition_summary_tab, team_summary_tab = st.tabs(("Competition Summary", "Team Summary"))
+    competition_summary_tab, head_to_head_tab, team_summary_tab = st.tabs(
+        ("Competition Summary", "Head-to-Head", "Team Summary")
+    )
     competitions = service.list_competitions()
 
     with competition_summary_tab:
@@ -870,6 +1005,70 @@ def analysis_page(service: RugbyService) -> None:
             st.info("Add a competition and its matches to generate a competition summary.")
         else:
             st.info("Select a competition and year to generate the report.")
+
+    with head_to_head_tab:
+        names = sorted({str(row["name"]) for row in competitions}, key=str.casefold)
+        selected_name = st.selectbox(
+            "Competition", names, index=None, placeholder="Select a competition",
+            key="head_to_head_competition", on_change=_clear_head_to_head_selections,
+        )
+        competition_seasons = sorted(
+            [row for row in competitions if row["name"] == selected_name],
+            key=lambda row: str(row["season"]), reverse=True,
+        )
+        season_options = [str(row["season"]) for row in competition_seasons]
+        if len(season_options) > 1:
+            season_options.insert(0, "All Seasons")
+        selected_season = st.selectbox(
+            "Year", season_options, index=0 if len(season_options) == 1 else None,
+            placeholder="Select a year or All Seasons", disabled=selected_name is None,
+            key="head_to_head_season", on_change=_clear_head_to_head_teams,
+        )
+        selected_competitions = (
+            competition_seasons if selected_season == "All Seasons" else
+            [row for row in competition_seasons if str(row["season"]) == selected_season]
+        )
+        selected_ids = [int(row["id"]) for row in selected_competitions]
+        matches = [
+            match for competition_id in selected_ids
+            for match in service.list_matches(competition_id)
+        ]
+        participating_ids = {
+            int(team_id) for match in matches
+            for team_id in (match["home_team_id"], match["away_team_id"])
+        }
+        teams = sorted(
+            [row for row in service.list_teams() if int(row["id"]) in participating_ids],
+            key=lambda row: str(row["name"]).casefold(),
+        )
+        team_options = {int(row["id"]): str(row["name"]) for row in teams}
+        selectors_enabled = bool(selected_ids)
+        if selectors_enabled:
+            # Keep the selectors independent so changing either team preserves the
+            # other selection and immediately refreshes the report.
+            team_a = _select(
+                "Team A", team_options, placeholder="Select Team A",
+                key="head_to_head_team_a",
+            )
+            team_b = _select(
+                "Team B", team_options, placeholder="Select Team B",
+                key="head_to_head_team_b",
+            )
+        else:
+            st.selectbox("Team A", [], index=None, placeholder="Select Team A", disabled=True, key="head_to_head_team_a_disabled")
+            st.selectbox("Team B", [], index=None, placeholder="Select Team B", disabled=True, key="head_to_head_team_b_disabled")
+            team_a = team_b = None
+        if team_a is not None and team_a == team_b:
+            st.info("Select two different teams to generate the report.")
+        elif selected_ids and team_a is not None and team_b is not None:
+            try:
+                _render_head_to_head(service.head_to_head(selected_ids, int(team_a), int(team_b)))
+            except ValidationError as error:
+                st.warning(str(error))
+        elif not competitions:
+            st.info("Add a competition and its matches to generate a Head-to-Head report.")
+        else:
+            st.info("Select a competition, year, and two teams to generate the report.")
 
     with team_summary_tab:
         names = sorted({str(row["name"]) for row in competitions}, key=str.casefold)

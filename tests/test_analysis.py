@@ -6,7 +6,10 @@ from rugby_tracker.analysis import (
     competition_round_summary,
     competition_summary_filename,
     competition_team_rankings,
+    head_to_head_filename,
+    head_to_head_host_record,
     render_competition_summary_pdf,
+    render_head_to_head_pdf,
     render_team_summary_pdf,
     team_summary_filename,
 )
@@ -117,3 +120,65 @@ def test_competition_summary_requires_matches_and_ruleset(connection) -> None:
         assert "matches" in str(error)
     else:
         raise AssertionError("Expected a competition without fixtures to be rejected.")
+
+
+def test_head_to_head_combines_seasons_and_exports_pdf(connection) -> None:
+    """Calculate historical records, home splits, highlights, and PDF output."""
+    service = RugbyService(connection)
+    country = service.save_country(name="France")
+    venue = service.save_venue(name="National Stadium", country_id=country)
+    alpha = service.save_team(name="Alpha", country_id=country, gender="Women", home_venue_id=venue)
+    beta = service.save_team(name="Beta", country_id=country, gender="Women", home_venue_id=venue)
+    first = service.save_competition(name="Test Series", season="2025", gender="Women", ruleset="w6n")
+    second = service.save_competition(name="Test Series", season="2026", gender="Women", ruleset="w6n")
+    service.save_match(
+        competition_id=first, round="1", venue_id=venue, match_date="2025-03-01",
+        home_team_id=alpha, away_team_id=beta, home_score=24, away_score=20,
+        home_tries=3, away_tries=2,
+    )
+    service.save_match(
+        competition_id=second, round="1", venue_id=venue, match_date="2026-03-01",
+        home_team_id=beta, away_team_id=alpha, home_score=30, away_score=10,
+        home_tries=4, away_tries=1,
+    )
+    service.save_match(
+        competition_id=second, round="Final", venue_id=venue, match_date="2026-03-08",
+        home_team_id=alpha, away_team_id=beta, home_score=18, away_score=18,
+        home_tries=2, away_tries=2,
+    )
+
+    report = service.head_to_head([first, second], alpha, beta)
+
+    assert report.season == "All Seasons"
+    assert (report.meetings, report.team_a_wins, report.team_b_wins, report.draws) == (3, 1, 1, 1)
+    assert (report.team_a_points, report.team_b_points) == (52, 68)
+    assert (report.team_a_tries, report.team_b_tries) == (6, 8)
+    assert report.largest_team_a_victory and report.largest_team_a_victory.margin == 4
+    assert report.largest_team_b_victory and report.largest_team_b_victory.margin == -20
+    assert len(report.closest_matches) == 2
+    assert report.current_streak == "The teams drew their latest meeting."
+    assert head_to_head_host_record(report, "Alpha")["W"] == 1
+    assert head_to_head_filename(report) == "head-to-head_alpha_beta_test-series_all-seasons.pdf"
+    assert render_head_to_head_pdf(report).startswith(b"%PDF")
+
+
+def test_head_to_head_requires_different_teams_with_completed_meetings(connection) -> None:
+    """Reject invalid selections and pairs without a completed result."""
+    service = RugbyService(connection)
+    country = service.save_country(name="Ireland")
+    venue = service.save_venue(name="Ground", country_id=country)
+    alpha = service.save_team(name="Alpha", country_id=country, gender="Men", home_venue_id=venue)
+    beta = service.save_team(name="Beta", country_id=country, gender="Men", home_venue_id=venue)
+    competition = service.save_competition(name="Series", season="2026", gender="Men", ruleset="m6n")
+    service.save_match(
+        competition_id=competition, venue_id=venue, match_date="2026-01-01",
+        home_team_id=alpha, away_team_id=beta,
+    )
+
+    for team_a, team_b, message in ((alpha, alpha, "different"), (alpha, beta, "completed")):
+        try:
+            service.head_to_head([competition], team_a, team_b)
+        except ValueError as error:
+            assert message in str(error)
+        else:
+            raise AssertionError("Expected invalid Head-to-Head selections to be rejected.")

@@ -91,7 +91,7 @@ Additional competitions are added as their structures and regulations become est
 
 ### Team Summary
 
-The Analysis section provides supporter-focused reports built directly from the recorded competition data. **Team Summary** allows supporters to explore a team's season from a single screen, while **Competition Summary** presents a season-wide view of results, standings and scoring patterns.
+The Analysis section provides supporter-focused reports built directly from the recorded competition data. **Team Summary** explores one team's season, **Competition Summary** presents a season-wide view, and **Head-to-Head** compares every recorded meeting between two teams.
 
 The report includes:
 
@@ -108,6 +108,21 @@ The report includes:
 - Chronological match history
 
 Reports can also be exported as formatted PDF documents for sharing or offline reference.
+
+### Head-to-Head
+
+The Head-to-Head report includes:
+
+- A single-season or all-seasons comparison
+- Overall wins, draws, losses, scoring and try totals
+- Records for matches hosted by each team
+- Chronological match history
+- Results timeline, points comparison and winning-margin charts
+- Average scores, biggest victories and highest-scoring match
+- One-score matches and matches decided by three points or fewer
+- The current winning or drawing streak
+
+Only teams participating in the selected competition are offered, and reports can be exported as formatted PDF documents.
 
 ### Competition Summary
 

@@ -9,8 +9,10 @@ from typing import Any
 from rugby_tracker.repositories import Repository, RugbyRepository
 from rugby_tracker.analysis import (
     CompetitionSummaryReport,
+    HeadToHeadReport,
     TeamSummaryReport,
     build_competition_summary,
+    build_head_to_head,
     build_team_summary,
 )
 from rugby_tracker.standings import RULESETS, calculate_competition, table_to_csv
@@ -395,6 +397,45 @@ class RugbyService:
             raise ValidationError("Add matches for this competition before generating a summary.")
         try:
             return build_competition_summary(competition, matches)
+        except ValueError as error:
+            raise ValidationError(str(error)) from error
+
+    def head_to_head(
+        self, competition_ids: list[int], team_a_id: int, team_b_id: int
+    ) -> HeadToHeadReport:
+        """Calculate a historical comparison for two participating teams.
+
+        :param competition_ids: One or more seasons of the same competition.
+        :param team_a_id: First participating team identifier.
+        :param team_b_id: Second participating team identifier.
+        :return: Structured Head-to-Head report.
+        :raises ValidationError: If selections are invalid or have no completed meetings.
+        """
+        competitions = [
+            competition for competition_id in competition_ids
+            if (competition := self.repo.competitions.get(int(competition_id))) is not None
+        ]
+        if not competitions or len(competitions) != len(set(competition_ids)):
+            raise ValidationError("Select a valid competition and season.")
+        if len({str(row["name"]).casefold() for row in competitions}) != 1:
+            raise ValidationError("Selected seasons must belong to the same competition.")
+        teams = {int(row["id"]): row for row in self.repo.list_teams()}
+        if team_a_id not in teams or team_b_id not in teams:
+            raise ValidationError("Select two valid teams.")
+        matches = [
+            match for competition_id in competition_ids
+            for match in self.repo.list_matches(int(competition_id))
+        ]
+        participating = {
+            int(team_id) for match in matches
+            for team_id in (match["home_team_id"], match["away_team_id"])
+        }
+        if team_a_id not in participating or team_b_id not in participating:
+            raise ValidationError("Select teams participating in this competition and season.")
+        try:
+            return build_head_to_head(
+                competitions, teams[team_a_id], teams[team_b_id], matches
+            )
         except ValueError as error:
             raise ValidationError(str(error)) from error
 
