@@ -9,6 +9,11 @@ import pandas as pd
 import streamlit as st
 from pandas.io.formats.style import Styler
 
+from rugby_tracker.analysis import (
+    TeamSummaryReport,
+    render_team_summary_pdf,
+    team_summary_filename,
+)
 from rugby_tracker.database import apply_migrations, connect
 from rugby_tracker.exports import EXPORT_TYPES, CsvExportService
 from rugby_tracker.imports import IMPORT_TYPES, CsvImportService, ImportReport
@@ -21,6 +26,25 @@ LOSS_BACKGROUND = "#f4cccc"
 DRAW_BACKGROUND = "#fff2cc"
 MEN_AND_WOMEN = "Men and Women"
 GENDER_FILTERS = (MEN_AND_WOMEN, *GENDERS)
+
+
+def _clear_analysis_season() -> None:
+    """Clear dependent Analysis selections after a competition change.
+
+    :return: None.
+    """
+    # Earlier selector changes must never leave a stale report visible.
+    st.session_state.pop("analysis_season", None)
+    st.session_state.pop("analysis_team", None)
+
+
+def _clear_analysis_team() -> None:
+    """Clear the selected team after a season change.
+
+    :return: None.
+    """
+    # Teams are scoped to a specific competition-season record.
+    st.session_state.pop("analysis_team", None)
 
 
 def _filter_by_gender(
@@ -534,6 +558,181 @@ def matches_page(service: RugbyService, connection: Any) -> None:
             st.error(str(error))
 
 
+def _metric_row(values: list[tuple[str, str | int | float]]) -> None:
+    """Render a responsive row of report metrics.
+
+    :param values: Ordered label and display-value pairs.
+    :return: None.
+    """
+    # Give every measure equal visual weight within its section.
+    for column, (label, value) in zip(st.columns(len(values)), values, strict=True):
+        column.metric(label, value)
+
+
+def _render_team_summary(report: TeamSummaryReport) -> None:
+    """Render a structured team summary in Streamlit.
+
+    :param report: Calculated report shared with the PDF renderer.
+    :return: None.
+    """
+    # Lead with identity and a ready-to-save standalone report.
+    st.header(f"{report.team} — {report.competition} {report.season}")
+    st.download_button(
+        "Download PDF",
+        render_team_summary_pdf(report),
+        file_name=team_summary_filename(report),
+        mime="application/pdf",
+        type="primary",
+    )
+    st.subheader("Team overview")
+    st.write(
+        f"**Country:** {report.country}  \n"
+        f"**Home venue:** {report.home_venue}  \n"
+        f"**Matches played:** {report.played}"
+    )
+
+    st.subheader("Season record")
+    _metric_row([
+        ("Played", report.played), ("Won", report.won), ("Drawn", report.drawn),
+        ("Lost", report.lost), ("Win percentage", f"{report.win_percentage:.1f}%"),
+    ])
+    if report.league:
+        st.subheader("League performance")
+        _metric_row([
+            ("Position", report.league["position"]),
+            ("Competition points", report.league["competition_points"]),
+            ("Points difference", report.league["points_difference"]),
+            ("Champion", "Yes" if report.league["champion"] else "No"),
+        ])
+    else:
+        st.info("League standings do not apply or are not configured for this competition.")
+
+    st.subheader("Scoring summary")
+    _metric_row([
+        ("Points scored", report.points_for),
+        ("Points conceded", report.points_against),
+        ("Points difference", report.points_for - report.points_against),
+        ("Average scored", f"{report.points_for / report.played:.1f}" if report.played else "0.0"),
+        ("Average conceded", f"{report.points_against / report.played:.1f}" if report.played else "0.0"),
+    ])
+    st.subheader("Try summary")
+    if report.tries_for is None or report.tries_against is None:
+        st.info("Try totals are unavailable because one or more completed matches lack try data.")
+    else:
+        _metric_row([
+            ("Tries scored", report.tries_for),
+            ("Tries conceded", report.tries_against),
+            ("Average scored", f"{report.tries_for / report.played:.1f}" if report.played else "0.0"),
+            ("Average conceded", f"{report.tries_against / report.played:.1f}" if report.played else "0.0"),
+        ])
+
+    st.subheader("Home and away record")
+    st.dataframe(pd.DataFrame([
+        {"Location": label, "P": record["played"], "W": record["won"],
+         "D": record["drawn"], "L": record["lost"], "PF": record["points_for"],
+         "PA": record["points_against"], "PD": record["points_difference"]}
+        for label, record in (("Home", report.home_record), ("Away", report.away_record))
+    ]), hide_index=True, width="stretch")
+    st.caption(
+        "Home and away use the stored team designation. The current data model does not "
+        "identify neutral venues."
+    )
+
+    st.subheader("Biggest results")
+    notable = [
+        ("Largest victory / biggest winning margin", report.largest_victory),
+        ("Largest defeat / biggest losing margin", report.largest_defeat),
+        ("Highest-scoring match", report.highest_scoring),
+        ("Lowest-scoring match", report.lowest_scoring),
+    ]
+    st.dataframe(pd.DataFrame([
+        {"Measure": label, "Match": match.context if match else "No qualifying result"}
+        for label, match in notable
+    ]), hide_index=True, width="stretch")
+
+    # Charts include text labels and legends so colour is never the only cue.
+    st.subheader("Visualisations")
+    chart_left, chart_right = st.columns(2)
+    with chart_left:
+        st.markdown("**Results breakdown**")
+        st.bar_chart(pd.DataFrame({"Matches": [report.won, report.drawn, report.lost]}, index=["Wins", "Draws", "Losses"]))
+    completed = [match for match in report.matches if match.result != "—"]
+    with chart_right:
+        st.markdown("**Points by match**")
+        if completed:
+            points = pd.DataFrame({
+                "Points scored": [match.points_for for match in completed],
+                "Points conceded": [match.points_against for match in completed],
+            }, index=[f"{match.match_date} · {match.opponent}" for match in completed])
+            st.line_chart(points)
+        else:
+            st.info("No completed matches to plot.")
+
+    st.subheader("Match results")
+    st.dataframe(pd.DataFrame([{
+        "Round": match.round, "Date": match.match_date, "Opponent": match.opponent,
+        "Home/Away": match.location, "Venue": match.venue,
+        "Points scored": match.points_for, "Points conceded": match.points_against,
+        "Score": match.score, "Result": match.result,
+    } for match in report.matches]), hide_index=True, width="stretch")
+
+
+def analysis_page(service: RugbyService) -> None:
+    """Render the extensible Analysis area and Team Summary report.
+
+    :param service: Business service used to query and calculate reports.
+    :return: None.
+    """
+    # Sub-tabs establish the navigation structure for future analysis reports.
+    st.header("Analysis")
+    team_summary_tab, = st.tabs(("Team Summary",))
+    with team_summary_tab:
+        competitions = service.list_competitions()
+        names = sorted({str(row["name"]) for row in competitions}, key=str.casefold)
+        selected_name = st.selectbox(
+            "Competition", names, index=None, placeholder="Select a competition",
+            key="analysis_competition", on_change=_clear_analysis_season,
+        )
+        seasons = sorted(
+            {str(row["season"]) for row in competitions if row["name"] == selected_name},
+            reverse=True,
+        )
+        season_index = 0 if len(seasons) == 1 else None
+        selected_season = st.selectbox(
+            "Year", seasons, index=season_index, placeholder="Select a year",
+            disabled=selected_name is None, key="analysis_season",
+            on_change=_clear_analysis_team,
+        )
+        selected_competition = next((
+            row for row in competitions
+            if row["name"] == selected_name and str(row["season"]) == selected_season
+        ), None)
+        matches = service.list_matches(int(selected_competition["id"])) if selected_competition else []
+        participating_ids = {
+            int(team_id) for match in matches
+            for team_id in (match["home_team_id"], match["away_team_id"])
+        }
+        teams = sorted(
+            [row for row in service.list_teams() if int(row["id"]) in participating_ids],
+            key=lambda row: str(row["name"]).casefold(),
+        )
+        team_options = {int(row["id"]): str(row["name"]) for row in teams}
+        selected_team = _select(
+            "Team", team_options, placeholder="Select a team", key="analysis_team"
+        ) if selected_competition else st.selectbox(
+            "Team", [], index=None, placeholder="Select a team", disabled=True,
+            key="analysis_team_disabled",
+        )
+        if selected_competition and selected_team is not None:
+            # Only a fully resolved selector chain can generate or export a report.
+            report = service.team_summary(int(selected_competition["id"]), int(selected_team))
+            _render_team_summary(report)
+        elif not competitions:
+            st.info("Add a competition and its matches to generate a team summary.")
+        else:
+            st.info("Select a competition, year, and team to generate the report.")
+
+
 def league_table_page(service: RugbyService) -> None:
     """Render and offer CSV export for a calculated competition table.
 
@@ -769,7 +968,7 @@ def main() -> None:
     page = st.radio(
         "Navigate",
         (
-            "League Table", "Matches", "Competitions", "Teams", "Venues", "Referees",
+            "Analysis", "League Table", "Matches", "Competitions", "Teams", "Venues", "Referees",
             "Countries",
             "CSV Import", "CSV Export",
         ),
@@ -781,6 +980,7 @@ def main() -> None:
     try:
         service = RugbyService(connection)
         pages = {
+            "Analysis": lambda: analysis_page(service),
             "League Table": lambda: league_table_page(service),
             "Matches": lambda: matches_page(service, connection),
             "CSV Import": lambda: import_page(connection),

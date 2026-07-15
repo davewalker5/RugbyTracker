@@ -7,6 +7,7 @@ from datetime import date, time
 from typing import Any
 
 from rugby_tracker.repositories import Repository, RugbyRepository
+from rugby_tracker.analysis import TeamSummaryReport, build_team_summary
 from rugby_tracker.standings import RULESETS, calculate_competition, table_to_csv
 
 
@@ -355,6 +356,24 @@ class RugbyService:
         :return: CSV text containing the current league table.
         """
         return table_to_csv(self.league_table(competition_id)["table"])
+
+    def team_summary(self, competition_id: int, team_id: int) -> TeamSummaryReport:
+        """Calculate a team summary for one competition record.
+
+        :param competition_id: Selected competition-season identifier.
+        :param team_id: Participating team identifier.
+        :return: Structured team summary for UI and PDF rendering.
+        :raises ValidationError: If either selection is invalid or unrelated.
+        """
+        # Resolve selections through existing repositories before calculating.
+        competition = self.repo.competitions.get(competition_id)
+        team = next((row for row in self.repo.list_teams() if int(row["id"]) == team_id), None)
+        if competition is None or team is None:
+            raise ValidationError("Select a valid competition and team.")
+        matches = self.repo.list_matches(competition_id)
+        if not any(team_id in (int(row["home_team_id"]), int(row["away_team_id"])) for row in matches):
+            raise ValidationError("Select a team participating in this competition and season.")
+        return build_team_summary(competition, team, matches)
 
     @staticmethod
     def _save(repository: Repository, entity_id: int | None, data: dict[str, Any]) -> int:
