@@ -89,9 +89,9 @@ Additional competitions are added as their structures and regulations become est
 
 ## Analysis Features
 
-### Team Analysis
+### Team Summary
 
-The Analysis section provides supporter-focused reports built directly from the recorded competition data. The first integrated report is **Team Summary**, allowing supporters to explore a team's season from a single screen.
+The Analysis section provides supporter-focused reports built directly from the recorded competition data. **Team Summary** allows supporters to explore a team's season from a single screen, while **Competition Summary** presents a season-wide view of results, standings and scoring patterns.
 
 The report includes:
 
@@ -106,6 +106,20 @@ The report includes:
 - Results breakdown charts
 - Points scored and conceded through the season
 - Chronological match history
+
+Reports can also be exported as formatted PDF documents for sharing or offline reference.
+
+### Competition Summary
+
+The Competition Summary report includes:
+
+- Competition overview and final league table
+- Headline scoring, try and result statistics
+- Attack and defence team rankings
+- Home and away performance
+- Scoring and winning-margin distributions
+- Round-by-round scoring trends
+- Highest-scoring and closest matches
 
 Reports can also be exported as formatted PDF documents for sharing or offline reference.
 
