@@ -11,7 +11,12 @@ import streamlit as st
 from pandas.io.formats.style import Styler
 
 from rugby_tracker.analysis import (
+    CompetitionSummaryReport,
     TeamSummaryReport,
+    competition_round_summary,
+    competition_summary_filename,
+    competition_team_rankings,
+    render_competition_summary_pdf,
     render_team_summary_pdf,
     team_summary_filename,
 )
@@ -46,6 +51,14 @@ def _clear_analysis_team() -> None:
     """
     # Teams are scoped to a specific competition-season record.
     st.session_state.pop("analysis_team", None)
+
+
+def _clear_competition_analysis_season() -> None:
+    """Clear the Competition Summary season after its competition changes.
+
+    :return: None.
+    """
+    st.session_state.pop("competition_analysis_season", None)
 
 
 def _filter_by_gender(
@@ -608,6 +621,110 @@ def _metric_cards(values: list[tuple[str, str | int | float]]) -> None:
     )
 
 
+def _render_competition_summary(report: CompetitionSummaryReport) -> None:
+    """Render a structured competition summary in Streamlit.
+
+    :param report: Calculated report shared with the PDF renderer.
+    :return: None.
+    """
+    st.header(f"{report.competition} — {report.season}")
+    st.download_button(
+        "Download PDF",
+        render_competition_summary_pdf(report),
+        file_name=competition_summary_filename(report),
+        mime="application/pdf",
+        type="primary",
+        key="competition_summary_pdf",
+    )
+
+    st.subheader("Competition overview")
+    _metric_cards([
+        ("Teams", report.team_count),
+        ("Completed matches", report.completed_matches),
+        ("Scheduled matches", report.scheduled_matches),
+        ("Total tries", report.total_tries if report.total_tries is not None else "Unavailable"),
+        ("Total points", report.total_points),
+    ])
+
+    st.subheader("Final league table")
+    table_columns = ("Pos", "Team", "P", "W", "D", "L", "PF", "PA", "PD", "Pts")
+    st.dataframe(pd.DataFrame([
+        {column: row[column] for column in table_columns} for row in report.league_table
+    ]), hide_index=True, width="stretch")
+    if report.table_provisional_notes:
+        st.caption("Table is provisional: " + "; ".join(report.table_provisional_notes))
+
+    st.subheader("Competition statistics")
+    _metric_cards([
+        ("Average points", f"{report.average_points:.1f}"),
+        ("Average tries", f"{report.average_tries:.1f}" if report.average_tries is not None else "Unavailable"),
+        ("Home wins", report.home_wins),
+        ("Away wins", report.away_wins),
+        ("Draws", report.draws),
+    ])
+    highlights = (
+        ("Highest-scoring match", report.highest_scoring, "total_points"),
+        ("Lowest-scoring match", report.lowest_scoring, "total_points"),
+        ("Largest winning margin", report.largest_margin, "winning_margin"),
+    )
+    st.dataframe(pd.DataFrame([{
+        "Highlight": label,
+        "Match": match.context if match else "No completed match",
+        "Points / margin": getattr(match, measure) if match else None,
+    } for label, match, measure in highlights]), hide_index=True, width="stretch")
+
+    st.subheader("Team rankings")
+    st.dataframe(pd.DataFrame(competition_team_rankings(report)), hide_index=True, width="stretch")
+
+    st.subheader("Home and away performance")
+    denominator = report.completed_matches or 1
+    outcomes = pd.DataFrame({"Percentage": [
+        report.home_wins / denominator * 100,
+        report.away_wins / denominator * 100,
+        report.draws / denominator * 100,
+    ]}, index=["Home wins", "Away wins", "Draws"])
+    _metric_cards([(label, f"{value:.1f}%") for label, value in outcomes["Percentage"].items()])
+    st.bar_chart(outcomes, y_label="Percentage of completed matches")
+
+    st.subheader("Scoring distribution and winning margins")
+    chart_left, chart_right = st.columns(2)
+    with chart_left:
+        st.markdown("**Points scored per match**")
+        scoring = pd.Series([match.total_points for match in report.matches]).value_counts().sort_index()
+        st.bar_chart(scoring.rename("Matches"), x_label="Total match points", y_label="Matches")
+    with chart_right:
+        st.markdown("**Winning margins**")
+        margins = pd.Series([match.winning_margin for match in report.matches]).value_counts().sort_index()
+        st.bar_chart(margins.rename("Matches"), x_label="Points (draws = 0)", y_label="Matches")
+
+    st.subheader("Results by round")
+    rounds = competition_round_summary(report)
+    round_table = pd.DataFrame(rounds)
+    if not round_table.empty:
+        round_table["Average points"] = round_table["Average points"].map(lambda value: round(value, 1))
+        st.dataframe(round_table, hide_index=True, width="stretch")
+        st.line_chart(
+            round_table.set_index("Round")[["Average points"]],
+            y_label="Average points per match",
+        )
+    else:
+        st.info("No completed matches to summarise by round.")
+
+    st.subheader("Highest-scoring matches")
+    highest = sorted(report.matches, key=lambda match: (-match.total_points, match.match_date))[:10]
+    st.dataframe(pd.DataFrame([{
+        "Date": match.match_date, "Round": match.round, "Home": match.home_team,
+        "Away": match.away_team, "Score": match.score, "Total points": match.total_points,
+    } for match in highest]), hide_index=True, width="stretch")
+
+    st.subheader("Closest matches")
+    closest = sorted(report.matches, key=lambda match: (match.winning_margin, match.match_date))[:10]
+    st.dataframe(pd.DataFrame([{
+        "Date": match.match_date, "Home": match.home_team, "Away": match.away_team,
+        "Score": match.score, "Winning margin": match.winning_margin,
+    } for match in closest]), hide_index=True, width="stretch")
+
+
 def _render_team_summary(report: TeamSummaryReport) -> None:
     """Render a structured team summary in Streamlit.
 
@@ -713,16 +830,48 @@ def _render_team_summary(report: TeamSummaryReport) -> None:
 
 
 def analysis_page(service: RugbyService) -> None:
-    """Render the extensible Analysis area and Team Summary report.
+    """Render the Competition Summary and Team Summary analysis reports.
 
     :param service: Business service used to query and calculate reports.
     :return: None.
     """
-    # Sub-tabs establish the navigation structure for future analysis reports.
     st.header("Analysis")
-    team_summary_tab, = st.tabs(("Team Summary",))
+    competition_summary_tab, team_summary_tab = st.tabs(("Competition Summary", "Team Summary"))
+    competitions = service.list_competitions()
+
+    with competition_summary_tab:
+        names = sorted({str(row["name"]) for row in competitions}, key=str.casefold)
+        selected_name = st.selectbox(
+            "Competition", names, index=None, placeholder="Select a competition",
+            key="competition_analysis_competition",
+            on_change=_clear_competition_analysis_season,
+        )
+        seasons = sorted(
+            {str(row["season"]) for row in competitions if row["name"] == selected_name},
+            reverse=True,
+        )
+        selected_season = st.selectbox(
+            "Year", seasons, index=0 if len(seasons) == 1 else None,
+            placeholder="Select a year", disabled=selected_name is None,
+            key="competition_analysis_season",
+        )
+        selected_competition = next((
+            row for row in competitions
+            if row["name"] == selected_name and str(row["season"]) == selected_season
+        ), None)
+        if selected_competition:
+            try:
+                _render_competition_summary(
+                    service.competition_summary(int(selected_competition["id"]))
+                )
+            except ValidationError as error:
+                st.warning(str(error))
+        elif not competitions:
+            st.info("Add a competition and its matches to generate a competition summary.")
+        else:
+            st.info("Select a competition and year to generate the report.")
+
     with team_summary_tab:
-        competitions = service.list_competitions()
         names = sorted({str(row["name"]) for row in competitions}, key=str.casefold)
         selected_name = st.selectbox(
             "Competition", names, index=None, placeholder="Select a competition",

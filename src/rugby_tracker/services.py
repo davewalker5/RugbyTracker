@@ -7,7 +7,12 @@ from datetime import date, time
 from typing import Any
 
 from rugby_tracker.repositories import Repository, RugbyRepository
-from rugby_tracker.analysis import TeamSummaryReport, build_team_summary
+from rugby_tracker.analysis import (
+    CompetitionSummaryReport,
+    TeamSummaryReport,
+    build_competition_summary,
+    build_team_summary,
+)
 from rugby_tracker.standings import RULESETS, calculate_competition, table_to_csv
 
 
@@ -374,6 +379,24 @@ class RugbyService:
         if not any(team_id in (int(row["home_team_id"]), int(row["away_team_id"])) for row in matches):
             raise ValidationError("Select a team participating in this competition and season.")
         return build_team_summary(competition, team, matches)
+
+    def competition_summary(self, competition_id: int) -> CompetitionSummaryReport:
+        """Calculate a competition-wide summary for one season record.
+
+        :param competition_id: Selected competition-season identifier.
+        :return: Structured competition summary for UI and PDF rendering.
+        :raises ValidationError: If the selection is invalid or cannot be calculated.
+        """
+        competition = self.repo.competitions.get(competition_id)
+        if competition is None:
+            raise ValidationError("Select a valid competition.")
+        matches = self.repo.list_matches(competition_id)
+        if not matches:
+            raise ValidationError("Add matches for this competition before generating a summary.")
+        try:
+            return build_competition_summary(competition, matches)
+        except ValueError as error:
+            raise ValidationError(str(error)) from error
 
     @staticmethod
     def _save(repository: Repository, entity_id: int | None, data: dict[str, Any]) -> int:

@@ -1,8 +1,15 @@
-"""Tests for Team Summary calculations and PDF export."""
+"""Tests for supporter-focused summary calculations and PDF export."""
 
 from __future__ import annotations
 
-from rugby_tracker.analysis import render_team_summary_pdf, team_summary_filename
+from rugby_tracker.analysis import (
+    competition_round_summary,
+    competition_summary_filename,
+    competition_team_rankings,
+    render_competition_summary_pdf,
+    render_team_summary_pdf,
+    team_summary_filename,
+)
 from rugby_tracker.services import RugbyService
 
 
@@ -54,3 +61,59 @@ def test_team_summary_rejects_non_participating_team(connection) -> None:
         assert "participating" in str(error)
     else:
         raise AssertionError("Expected an unrelated team to be rejected.")
+
+
+def test_competition_summary_calculates_rankings_rounds_and_pdf(connection) -> None:
+    """Calculate competition totals, rankings, rounds, and a standalone PDF."""
+    service = RugbyService(connection)
+    country = service.save_country(name="England")
+    venue = service.save_venue(name="National Ground", country_id=country)
+    alpha = service.save_team(name="Alpha", country_id=country, gender="Women", home_venue_id=venue)
+    beta = service.save_team(name="Beta", country_id=country, gender="Women", home_venue_id=venue)
+    competition = service.save_competition(
+        name="Test Cup", season="2026", gender="Women", ruleset="w6n"
+    )
+    service.save_match(
+        competition_id=competition, round="1", venue_id=venue,
+        match_date="2026-03-01", home_team_id=alpha, away_team_id=beta,
+        home_score=30, away_score=10, home_tries=4, away_tries=1,
+    )
+    service.save_match(
+        competition_id=competition, round="2", venue_id=venue,
+        match_date="2026-03-08", home_team_id=beta, away_team_id=alpha,
+        home_score=20, away_score=20, home_tries=2, away_tries=2,
+    )
+    service.save_match(
+        competition_id=competition, round="3", venue_id=venue,
+        match_date="2026-03-15", home_team_id=alpha, away_team_id=beta,
+    )
+
+    report = service.competition_summary(competition)
+
+    assert (report.team_count, report.completed_matches, report.scheduled_matches) == (2, 2, 3)
+    assert (report.total_points, report.total_tries) == (80, 9)
+    assert (report.home_wins, report.away_wins, report.draws) == (1, 0, 1)
+    assert report.average_points == 40
+    assert report.highest_scoring and report.highest_scoring.score == "30–10"
+    assert report.largest_margin and report.largest_margin.winning_margin == 20
+    assert competition_team_rankings(report)[0] == {
+        "Category": "Most competition points", "Leader": "Alpha", "Value": 7,
+    }
+    assert [row["Round"] for row in competition_round_summary(report)] == ["1", "2"]
+    assert competition_summary_filename(report) == "competition-summary_test-cup_2026.pdf"
+    assert render_competition_summary_pdf(report).startswith(b"%PDF")
+
+
+def test_competition_summary_requires_matches_and_ruleset(connection) -> None:
+    """Reject seasons that cannot yet produce a meaningful summary."""
+    service = RugbyService(connection)
+    competition = service.save_competition(
+        name="Empty League", season="2026", gender="Men", ruleset="m6n"
+    )
+
+    try:
+        service.competition_summary(competition)
+    except ValueError as error:
+        assert "matches" in str(error)
+    else:
+        raise AssertionError("Expected a competition without fixtures to be rejected.")
