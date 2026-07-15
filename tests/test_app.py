@@ -10,6 +10,7 @@ from rugby_tracker.app import (
     LOSS_BACKGROUND,
     WIN_BACKGROUND,
     _export_validation_error,
+    _filter_by_gender,
     _style_match_results,
 )
 from rugby_tracker.database import apply_migrations, connect
@@ -25,10 +26,10 @@ def test_match_result_styles_colour_team_cells() -> None:
     :return: None.
     """
     table = pd.DataFrame([
-        {"Home": "Home winner", "Away": "Away loser"},
-        {"Home": "Home loser", "Away": "Away winner"},
-        {"Home": "Drawn home", "Away": "Drawn away"},
-        {"Home": "Future home", "Away": "Future away"},
+        {"Home": "Home winner", "Home Country": "A", "Away": "Away loser", "Away Country": "B"},
+        {"Home": "Home loser", "Home Country": "A", "Away": "Away winner", "Away Country": "B"},
+        {"Home": "Drawn home", "Home Country": "A", "Away": "Drawn away", "Away Country": "B"},
+        {"Home": "Future home", "Home Country": "A", "Away": "Future away", "Away Country": "B"},
     ])
     matches = [
         {"home_score": 24, "away_score": 17},
@@ -40,13 +41,34 @@ def test_match_result_styles_colour_team_cells() -> None:
     context = _style_match_results(table, matches)._compute().ctx
 
     assert context[(0, 0)] == [("background-color", WIN_BACKGROUND)]
-    assert context[(0, 1)] == [("background-color", LOSS_BACKGROUND)]
+    assert context[(0, 1)] == [("background-color", WIN_BACKGROUND)]
+    assert context[(0, 2)] == [("background-color", LOSS_BACKGROUND)]
+    assert context[(0, 3)] == [("background-color", LOSS_BACKGROUND)]
     assert context[(1, 0)] == [("background-color", LOSS_BACKGROUND)]
-    assert context[(1, 1)] == [("background-color", WIN_BACKGROUND)]
+    assert context[(1, 1)] == [("background-color", LOSS_BACKGROUND)]
+    assert context[(1, 2)] == [("background-color", WIN_BACKGROUND)]
+    assert context[(1, 3)] == [("background-color", WIN_BACKGROUND)]
     assert context[(2, 0)] == [("background-color", DRAW_BACKGROUND)]
     assert context[(2, 1)] == [("background-color", DRAW_BACKGROUND)]
+    assert context[(2, 2)] == [("background-color", DRAW_BACKGROUND)]
+    assert context[(2, 3)] == [("background-color", DRAW_BACKGROUND)]
     assert (3, 0) not in context
     assert (3, 1) not in context
+
+
+def test_gender_filter_defaults_to_all_and_selects_one_category() -> None:
+    """Filter teams or competitions using the shared category choices.
+
+    :return: None.
+    """
+    records = [
+        {"name": "Men's team", "gender": "Men"},
+        {"name": "Women's team", "gender": "Women"},
+    ]
+
+    assert _filter_by_gender(records, "Men and Women") == records
+    assert [row["name"] for row in _filter_by_gender(records, "Men")] == ["Men's team"]
+    assert [row["name"] for row in _filter_by_gender(records, "Women")] == ["Women's team"]
 
 
 def test_app_starts_with_an_empty_database(monkeypatch, tmp_path):
@@ -63,7 +85,7 @@ def test_all_pages_render_against_empty_database(monkeypatch, tmp_path):
     assert "Competition Summary" not in app.radio[0].options
     for page in (
         "League Table", "Matches", "CSV Import", "CSV Export",
-        "Competitions", "Teams", "Venues", "Referees",
+        "Competitions", "Teams", "Venues", "Referees", "Countries",
     ):
         app.radio[0].set_value(page).run()
         assert not app.exception, page
@@ -82,6 +104,7 @@ def test_csv_export_defaults_and_resets_file_stem(monkeypatch, tmp_path):
     app.radio[0].set_value("CSV Export").run()
 
     assert app.selectbox[0].value is None
+    assert app.selectbox[1].value == "All"
     assert app.text_input[0].value == ""
     assert app.button[0].label == "Download"
     app.button[0].click().run()
@@ -126,14 +149,28 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     apply_migrations(database)
     connection = connect(database)
     service = RugbyService(connection)
-    venue = service.save_venue(name="The Rec")
-    home = service.save_team(name="Bath", gender="Men", home_venue_id=venue)
-    away = service.save_team(name="Leicester Tigers", gender="Men", home_venue_id=venue)
+    bath_country = service.save_country(name="Bath")
+    leicester_country = service.save_country(name="Leicester Tigers")
+    england = service.save_country(name="England")
+    venue = service.save_venue(name="The Rec", country_id=england)
+    home = service.save_team(
+        name="Bath", country_id=bath_country, gender="Men", home_venue_id=venue
+    )
+    away = service.save_team(
+        name="Leicester Tigers", country_id=leicester_country, gender="Men",
+        home_venue_id=venue,
+    )
+    service.save_team(
+        name="Bath Women", country_id=england, gender="Women", home_venue_id=venue
+    )
     competition = service.save_competition(
         name="PREM", season="2025/26", gender="Men", ruleset="prem_2025_26"
     )
     later_competition = service.save_competition(
         name="PREM", season="2026/27", gender="Men", ruleset="prem_2025_26"
+    )
+    service.save_competition(
+        name="W6N", season="2026", gender="Women", ruleset="w6n"
     )
     service.save_match(
         competition_id=competition,
@@ -174,8 +211,13 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     assert app.selectbox[0].value is None
     app.selectbox[0].set_value(competition).run()
     assert app.dataframe[0].value.columns.tolist() == [
-        "Date", "Competition", "Round", "Venue", "Home", "Away", "Score", "Tries"
+        "Date", "Competition", "Round", "Venue", "Home", "Home Country",
+        "Away", "Away Country", "Score", "Tries",
     ]
+    assert app.dataframe[0].value["Home"].tolist() == ["Bath"]
+    assert app.dataframe[0].value["Home Country"].tolist() == ["Bath"]
+    assert app.dataframe[0].value["Away"].tolist() == ["Leicester Tigers"]
+    assert app.dataframe[0].value["Away Country"].tolist() == ["Leicester Tigers"]
     assert app.dataframe[0].value["Venue"].tolist() == ["The Rec"]
     assert app.dataframe[0].value["Score"].tolist() == ["31–17"]
     assert app.dataframe[0].value["Tries"].tolist() == ["4–2"]
@@ -204,20 +246,54 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     assert app.dataframe[0].value["Score"].tolist() == ["22–12"]
     assert app.dataframe[0].value["Tries"].tolist() == ["3–1"]
 
-    for page in ("Teams", "Competitions", "CSV Import", "CSV Export"):
+    for page in ("Teams", "Competitions"):
         app.radio[0].set_value(page).run()
         assert not app.exception, page
         assert app.selectbox, page
-        assert all(selector.value is None for selector in app.selectbox), page
+        assert app.selectbox[0].value == "Men and Women", page
+        assert all(selector.value is None for selector in app.selectbox[1:]), page
+        assert set(app.dataframe[0].value["Category"]) == {"Men", "Women"}
+        app.selectbox[0].set_value("Women").run()
+        assert set(app.dataframe[0].value["Category"]) == {"Women"}
+        app.selectbox[0].set_value("Men and Women").run()
+        if page == "Teams":
+            # Selecting a team populates both editable identity fields.
+            app.session_state["team_table"] = {"selection": {"rows": [0]}}
+            app.run()
+            assert app.text_input[0].value == "Bath"
+            assert app.selectbox[1].value == bath_country
+
+    app.radio[0].set_value("CSV Import").run()
+    assert not app.exception
+    assert app.selectbox
+    assert all(selector.value is None for selector in app.selectbox)
+
+    app.radio[0].set_value("CSV Export").run()
+    assert not app.exception
+    assert app.selectbox[0].value is None
+    assert app.selectbox[1].value == "All"
 
     app.radio[0].set_value("Competitions").run()
     app.session_state["competition_table"] = {"selection": {"rows": [0]}}
     app.run()
 
     assert [field.value for field in app.text_input] == ["PREM", "2025/26"]
-    assert [selector.value for selector in app.selectbox] == ["Men", "prem_2025_26"]
+    assert [selector.value for selector in app.selectbox] == [
+        "Men and Women", "Men", "prem_2025_26"
+    ]
 
-    for page in ("Venues", "Referees"):
-        app.radio[0].set_value(page).run()
-        assert not app.exception, page
-        assert not app.selectbox, page
+    app.radio[0].set_value("Venues").run()
+    assert not app.exception
+    assert len(app.selectbox) == 1
+    assert app.selectbox[0].label == "Country"
+
+    app.radio[0].set_value("Referees").run()
+    assert not app.exception
+    assert not app.selectbox
+
+    app.radio[0].set_value("Countries").run()
+    assert not app.exception
+    assert not app.selectbox
+    assert set(app.dataframe[0].value["Name"]) == {
+        "Bath", "England", "Leicester Tigers",
+    }

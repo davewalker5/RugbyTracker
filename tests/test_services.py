@@ -6,11 +6,15 @@ from rugby_tracker.services import ValidationError
 
 
 def test_crud_for_reference_entities(service, core_records):
-    venue = service.repo.venues.get(core_records["venue"])
+    venue = service.list_venues()[0]
     assert venue == {
-        "id": core_records["venue"], "name": "The Rec", "town_city": "Bath", "country": "England"
+        "id": core_records["venue"], "name": "The Rec", "town_city": "Bath",
+        "country_id": core_records["england"], "country": "England",
     }
-    service.save_venue(core_records["venue"], name="Recreation Ground", town_city="Bath", country="England")
+    service.save_venue(
+        core_records["venue"], name="Recreation Ground", town_city="Bath",
+        country_id=core_records["england"],
+    )
     assert service.repo.venues.get(core_records["venue"])["name"] == "Recreation Ground"
 
     service.save_referee(core_records["referee"], name="  Luke Pearce  ")
@@ -23,7 +27,18 @@ def test_crud_for_reference_entities(service, core_records):
         (lambda service: service.save_venue(name="   "), "Venue name is required."),
         (lambda service: service.save_referee(name=None), "Referee name is required."),
         (lambda service: service.save_competition(name="League", season="", gender="Men"), "Season is required."),
-        (lambda service: service.save_team(name="Club", gender="Mixed", home_venue_id=1), "Category must be"),
+        (
+            lambda service: service.save_team(
+                name="Club", country_id=1, gender="Mixed", home_venue_id=1
+            ),
+            "Category must be",
+        ),
+        (
+            lambda service: service.save_team(
+                name="Club", country_id="", gender="Men", home_venue_id=1
+            ),
+            "Country is required.",
+        ),
     ],
 )
 def test_mandatory_fields_have_clear_errors(service, action, message):
@@ -53,6 +68,30 @@ def test_match_can_be_a_fixture_then_updated_to_a_result(service, core_records):
     assert result["away_score"] == 17
 
 
+def test_team_identity_is_name_plus_country(service, core_records):
+    """Allow a shared name across countries but reject a duplicate identity.
+
+    :param service: Rugby service backed by the test database.
+    :param core_records: Identifiers for existing reference records.
+    :return: None.
+    """
+    service.save_team(
+        name="United", country_id=core_records["england"], gender="Women",
+        home_venue_id=core_records["venue"],
+    )
+    scotland = service.save_country(name="Scotland")
+    service.save_team(
+        name="United", country_id=scotland, gender="Men",
+        home_venue_id=core_records["venue"],
+    )
+
+    with pytest.raises(ValidationError, match="name and country already exists"):
+        service.save_team(
+            name="united", country_id=core_records["england"], gender="Men",
+            home_venue_id=core_records["venue"],
+        )
+
+
 def test_match_validation_reports_incomplete_scores_and_same_team(service, core_records):
     base = {
         "competition_id": core_records["competition"], "venue_id": core_records["venue"],
@@ -70,12 +109,29 @@ def test_match_validation_reports_incomplete_scores_and_same_team(service, core_
 def test_referenced_record_cannot_be_deleted(service, core_records):
     with pytest.raises(ValidationError, match="in use"):
         service.delete("venue", core_records["venue"])
+    with pytest.raises(ValidationError, match="in use"):
+        service.delete("country", core_records["england"])
 
 
 def test_unreferenced_record_can_be_deleted(service):
     referee_id = service.save_referee(name="Temporary Official")
     service.delete("referee", referee_id)
     assert service.list_referees() == []
+
+    country_id = service.save_country(name="Temporary Country")
+    service.delete("country", country_id)
+    assert service.list_countries() == []
+
+
+def test_duplicate_country_name_is_rejected(service):
+    """Reject case-insensitive duplicate country names with a clear error.
+
+    :param service: Rugby service backed by the test database.
+    :return: None.
+    """
+    service.save_country(name="England")
+    with pytest.raises(ValidationError, match="already exists"):
+        service.save_country(name="ENGLAND")
 
 
 @pytest.mark.parametrize("round_name", ("1", "Quarter-Final", "Semi-Final", "Final"))

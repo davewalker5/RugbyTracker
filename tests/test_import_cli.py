@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from rugby_tracker.database import connect
+from rugby_tracker.database import apply_migrations, connect
 from rugby_tracker.import_cli import build_parser, main
 
 
@@ -10,9 +10,11 @@ def test_parser_accepts_short_and_long_options(tmp_path):
     csv_file = tmp_path / "venues.csv"
     short = build_parser().parse_args(("-t", "venues", "-i", str(csv_file)))
     long = build_parser().parse_args(("--type", "teams", "--input", str(csv_file)))
+    countries = build_parser().parse_args(("--type", "countries", "--input", str(csv_file)))
     assert short.import_type == "venues"
     assert short.input_path == csv_file
     assert long.import_type == "teams"
+    assert countries.import_type == "countries"
 
 
 def test_cli_imports_valid_csv(monkeypatch, tmp_path, capsys):
@@ -20,6 +22,11 @@ def test_cli_imports_valid_csv(monkeypatch, tmp_path, capsys):
     csv_file = tmp_path / "venues.csv"
     csv_file.write_text("name,town_city,country\nThe Rec,Bath,England\n", encoding="utf-8")
     monkeypatch.setenv("RUGBY_TRACKER_DB", str(database))
+    apply_migrations(database)
+    connection = connect(database)
+    connection.execute("INSERT INTO countries(name) VALUES ('England')")
+    connection.commit()
+    connection.close()
 
     result = main(("-t", "venues", "-i", str(csv_file)))
 

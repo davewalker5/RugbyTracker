@@ -1,7 +1,7 @@
-name,gender,home_venue
-England,Men,Allianz Stadium
-France,Men,Stade de France
-Ireland,Men,Aviva Stadium
-Italy,Men,Stadio Olimpico
-Scotland,Men,Murrayfield
-Wales,Men,Principality Stadium
+name,country,gender,home_venue
+Azzurri,Italy,Men,Stadio Olimpico
+England,England,Men,Twickenham Stadium
+Ireland,Ireland,Men,Aviva Stadium
+Les Bleus,France,Men,Stade de France
+Scotland,Scotland,Men,Murrayfield
+Wales,Wales,Men,Principality Stadium

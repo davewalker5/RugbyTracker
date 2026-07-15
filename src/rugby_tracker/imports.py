@@ -20,24 +20,30 @@ from rugby_tracker.services import (
 )
 
 
-IMPORT_TYPES = ("Venues", "Teams", "Competitions", "Referees", "Matches")
+IMPORT_TYPES = ("Countries", "Venues", "Teams", "Competitions", "Referees", "Matches")
 TEMPLATE_HEADERS = {
+    "Countries": ("name",),
     "Venues": ("name", "town_city", "country"),
-    "Teams": ("name", "gender", "home_venue"),
+    "Teams": ("name", "country", "gender", "home_venue"),
     "Competitions": ("name", "season", "gender", "ruleset"),
     "Referees": ("name",),
     "Matches": (
         "competition", "season", "round", "venue", "referee", "date", "kickoff_time",
-        "home_team", "away_team", "home_tries", "away_tries", "home_score", "away_score",
+        "home_team", "home_country", "away_team", "away_country",
+        "home_tries", "away_tries", "home_score", "away_score",
     ),
 }
 
 REQUIRED_HEADERS = {
+    "Countries": {"name"},
     "Venues": {"name"},
-    "Teams": {"name", "gender", "home_venue"},
+    "Teams": {"name", "country", "gender", "home_venue"},
     "Competitions": {"name", "season", "gender"},
     "Referees": {"name"},
-    "Matches": {"competition", "season", "venue", "date", "home_team", "away_team"},
+    "Matches": {
+        "competition", "season", "venue", "date", "home_team", "home_country",
+        "away_team", "away_country",
+    },
 }
 
 HEADER_ALIASES = {
@@ -141,6 +147,7 @@ class CsvImportService:
         if rows is None:
             return report
         validator = {
+            "Countries": self._validate_country,
             "Venues": self._validate_venue,
             "Teams": self._validate_team,
             "Competitions": self._validate_competition,
@@ -232,11 +239,31 @@ class CsvImportService:
         """
         messages: list[str] = []
         name = self._value(lambda: required_text(row.get("name"), "Team name"), messages)
+        country_id = self._resolve(
+            "countries", row.get("country"), "Country", messages
+        )
         gender = self._value(lambda: self._gender(row.get("gender")), messages)
         venue_id = self._resolve("venues", row.get("home_venue"), "Home venue", messages)
         if messages:
             return None, messages
-        return {"name": name, "gender": gender, "home_venue_id": venue_id}, messages
+        return {
+            "name": name,
+            "country_id": country_id,
+            "gender": gender,
+            "home_venue_id": venue_id,
+        }, messages
+
+    def _validate_country(
+        self, row: dict[str, str]
+    ) -> tuple[dict[str, Any] | None, list[str]]:
+        """Validate one standalone country import row.
+
+        :param row: Normalised CSV row.
+        :return: Prepared service values and validation messages.
+        """
+        messages: list[str] = []
+        name = self._value(lambda: required_text(row.get("name"), "Country name"), messages)
+        return (None, messages) if messages else ({"name": name}, messages)
 
     def _validate_venue(self, row: dict[str, str]) -> tuple[dict[str, Any] | None, list[str]]:
         """Validate one venue import row.
@@ -246,12 +273,15 @@ class CsvImportService:
         """
         messages: list[str] = []
         name = self._value(lambda: required_text(row.get("name"), "Venue name"), messages)
+        country_id = self._resolve(
+            "countries", row.get("country"), "Country", messages, optional=True
+        )
         if messages:
             return None, messages
         return {
             "name": name,
             "town_city": optional_text(row.get("town_city")),
-            "country": optional_text(row.get("country")),
+            "country_id": country_id,
         }, messages
 
     def _validate_competition(self, row: dict[str, str]) -> tuple[dict[str, Any] | None, list[str]]:
@@ -302,10 +332,12 @@ class CsvImportService:
                 "venues", row.get("venue"), "Venue", messages, optional=True
             ),
             "home_team_id": self._resolve_team(
-                row.get("home_team"), "Home team", competition_id, messages
+                row.get("home_team"), row.get("home_country"), "Home team",
+                competition_id, messages
             ),
             "away_team_id": self._resolve_team(
-                row.get("away_team"), "Away team", competition_id, messages
+                row.get("away_team"), row.get("away_country"), "Away team",
+                competition_id, messages
             ),
             "referee_id": self._resolve("referees", row.get("referee"), "Referee", messages, optional=True),
             "round": optional_text(row.get("round")),
@@ -321,17 +353,19 @@ class CsvImportService:
     def _resolve_team(
         self,
         value: str | None,
+        country_value: str | None,
         label: str,
         competition_id: int | None,
         messages: list[str],
     ) -> int | None:
-        """Resolve a team name within the selected competition's gender.
+        """Resolve a team using its name and mandatory country identity.
 
         International fixture feeds commonly use ``England`` while the tracker
         stores the women's team as ``England Women``. Both forms are supported
         without allowing a women's fixture to resolve to the men's team.
 
         :param value: Team name or international short name from the CSV row.
+        :param country_value: Team country supplied by the CSV row.
         :param label: User-facing field label used in validation messages.
         :param competition_id: Resolved competition used to constrain gender.
         :param messages: Collection that receives validation failures.
@@ -340,13 +374,15 @@ class CsvImportService:
         # A missing competition already has its own validation error, but the team
         # name can still be checked for a useful required-field message.
         name = optional_text(value)
+        country = optional_text(country_value)
         if name is None:
             messages.append(f"{label} is required.")
+        if country is None:
+            messages.append(f"{label} country is required.")
+        if name is None or country is None:
             return None
         if competition_id is None:
-            # Preserve independent reference validation when the competition is
-            # invalid, since import reports should describe every bad field.
-            return self._resolve("teams", name, label, messages)
+            return self._resolve_team_identity(name, country, label, messages)
 
         # Prefer the canonical name, then accept the conventional gender suffix.
         competition = self.connection.execute(
@@ -357,18 +393,47 @@ class CsvImportService:
         for alias in (name, f"{name} {gender}"):
             rows = self.connection.execute(
                 """
-                SELECT id FROM teams
-                WHERE gender = ? AND name = ? COLLATE NOCASE
-                ORDER BY id
+                SELECT t.id FROM teams t
+                JOIN countries c ON c.id = t.country_id
+                WHERE t.gender = ? AND t.name = ? COLLATE NOCASE
+                  AND c.name = ? COLLATE NOCASE
+                ORDER BY t.id
                 """,
-                (gender, alias),
+                (gender, alias, country),
             ).fetchall()
             if len(rows) > 1:
                 messages.append(f'{label} "{name}" matches more than one {gender} team.')
                 return None
             if rows:
                 return int(rows[0]["id"])
-        messages.append(f'{label} "{name}" was not found for category {gender}.')
+        messages.append(
+            f'{label} "{name}" from "{country}" was not found for category {gender}.'
+        )
+        return None
+
+    def _resolve_team_identity(
+        self, name: str, country: str, label: str, messages: list[str]
+    ) -> int | None:
+        """Resolve a team by its case-insensitive name and country identity.
+
+        :param name: Canonical team name.
+        :param country: Mandatory team country.
+        :param label: User-facing field label used in validation messages.
+        :param messages: Collection that receives validation failures.
+        :return: The matching identifier, or ``None`` when no team exists.
+        """
+        rows = self.connection.execute(
+            """
+            SELECT t.id FROM teams t
+            JOIN countries c ON c.id = t.country_id
+            WHERE t.name = ? COLLATE NOCASE AND c.name = ? COLLATE NOCASE
+            ORDER BY t.id
+            """,
+            (name, country),
+        ).fetchall()
+        if rows:
+            return int(rows[0]["id"])
+        messages.append(f'{label} "{name}" from "{country}" was not found.')
         return None
 
     def _resolve_competition(
@@ -537,12 +602,18 @@ class CsvImportService:
         :param entity_type: Supported entity type being imported.
         :return: Set of normalised duplicate-detection keys.
         """
-        if entity_type == "Venues":
-            rows = self.connection.execute("SELECT name FROM venues").fetchall()
+        if entity_type in {"Countries", "Venues"}:
+            table = entity_type.casefold()
+            rows = self.connection.execute(f"SELECT name FROM {table}").fetchall()
             return {(row["name"].casefold(),) for row in rows}
         if entity_type == "Teams":
-            rows = self.connection.execute("SELECT name, gender FROM teams").fetchall()
-            return {(row["name"].casefold(), row["gender"].casefold()) for row in rows}
+            rows = self.connection.execute(
+                """
+                SELECT t.name, c.name AS country FROM teams t
+                JOIN countries c ON c.id = t.country_id
+                """
+            ).fetchall()
+            return {(row["name"].casefold(), row["country"].casefold()) for row in rows}
         if entity_type == "Competitions":
             rows = self.connection.execute("SELECT name, season, gender FROM competitions").fetchall()
             return {(row["name"].casefold(), row["season"].casefold(), row["gender"].casefold()) for row in rows}
@@ -571,12 +642,12 @@ class CsvImportService:
         :return: Duplicate key, or ``None`` when identity cannot be established.
         """
         name = optional_text(row.get("name"))
-        if entity_type in {"Venues", "Referees"}:
+        if entity_type in {"Countries", "Venues", "Referees"}:
             return (name.casefold(),) if name else None
 
         if entity_type == "Teams":
-            gender = self._identity_gender(row.get("gender"))
-            return (name.casefold(), gender.casefold()) if name and gender else None
+            country = optional_text(row.get("country"))
+            return (name.casefold(), country.casefold()) if name and country else None
 
         if entity_type == "Competitions":
             season = optional_text(row.get("season"))
@@ -593,10 +664,12 @@ class CsvImportService:
         # recognise fixtures whose CSV uses international short names.
         identity_messages: list[str] = []
         home_team_id = self._resolve_team(
-            row.get("home_team"), "Home team", competition_id, identity_messages
+            row.get("home_team"), row.get("home_country"), "Home team",
+            competition_id, identity_messages
         )
         away_team_id = self._resolve_team(
-            row.get("away_team"), "Away team", competition_id, identity_messages
+            row.get("away_team"), row.get("away_country"), "Away team",
+            competition_id, identity_messages
         )
         try:
             match_date = date.fromisoformat(required_text(row.get("date"), "Match date")).isoformat()
@@ -657,18 +730,20 @@ class CsvImportService:
         ).fetchall()
         return int(rows[0]["id"]) if len(rows) == 1 else None
 
-    @staticmethod
-    def _duplicate_key(entity_type: str, values: dict[str, Any]) -> tuple[Any, ...]:
+    def _duplicate_key(
+        self, entity_type: str, values: dict[str, Any]
+    ) -> tuple[Any, ...]:
         """Build a practical duplicate key for one prepared row.
 
         :param entity_type: Supported entity type being imported.
         :param values: Validated values ready for persistence.
         :return: Normalised tuple used for duplicate detection.
         """
-        if entity_type == "Venues":
+        if entity_type in {"Countries", "Venues"}:
             return (values["name"].casefold(),)
         if entity_type == "Teams":
-            return values["name"].casefold(), values["gender"].casefold()
+            country = self._country_name(values["country_id"])
+            return values["name"].casefold(), country.casefold()
         if entity_type == "Competitions":
             return values["name"].casefold(), values["season"].casefold(), values["gender"].casefold()
         if entity_type == "Referees":
@@ -678,6 +753,18 @@ class CsvImportService:
             values["home_team_id"], values["away_team_id"],
         )
 
+    def _country_name(self, country_id: int) -> str:
+        """Return the country name used in a prepared team's duplicate key.
+
+        :param country_id: Resolved country identifier.
+        :return: Country name stored for that identifier.
+        """
+        country = self.connection.execute(
+            "SELECT name FROM countries WHERE id = ?", (country_id,)
+        ).fetchone()
+        assert country is not None
+        return str(country["name"])
+
     def _persist(self, entity_type: str, values: dict[str, Any]) -> int:
         """Persist one validated import row through the business service.
 
@@ -686,6 +773,7 @@ class CsvImportService:
         :return: Identifier of the imported record.
         """
         action = {
+            "Countries": self.rugby.save_country,
             "Venues": self.rugby.save_venue,
             "Teams": self.rugby.save_team,
             "Competitions": self.rugby.save_competition,

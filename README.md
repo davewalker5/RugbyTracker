@@ -22,6 +22,7 @@ Built using Python, Streamlit and SQLite, the application follows the same desig
 
 Maintain reference data for:
 
+- Countries through CSV import, export, and a maintenance tab
 - Venues
 - Teams
 - Competitions
@@ -64,12 +65,15 @@ The tracker calculates:
 - League Points
 
 League tables are calculated dynamically rather than stored in the database.
+Each table identifies the team and its country before showing the calculated statistics.
 
 For the Premiership Rugby and Premiership Women's Rugby rulesets, matches marked _Quarter-Final_, _Semi-Final_ or _Final_ are excluded from the league table. Teams are ranked by league points and then points difference, both descending.
 
 For the Men's and Women's Six Nations rulesets, the tracker validates the six-team, 15-match single round robin and ranks teams by competition points, points difference and tries scored. Once every result is present, it also determines the champion (including a shared title), Grand Slam, Triple Crown and Wooden Spoon.
 
 For the 2026 WXV Global Series and Global Series Challenger rulesets, the tracker supports the published selected-fixture formats and ranks teams by competition points, points difference and tries scored.
+
+For the 2026 Nations Championship Southern and Northern Series, the tracker supports the published cross-hemisphere fixtures and shared match-points rules. Teams are ranked by competition points, wins, points difference and then tries scored.
 
 ### Competition Rules
 
@@ -81,11 +85,13 @@ Support for competition-specific points systems, including:
 - Women's Six Nations
 - WXV Global Series (2026)
 - WXV Global Series Challenger (2026)
+- Nations Championship Series (2026)
 
 ### CSV Import
 
 Import data from CSV files for:
 
+- Countries
 - Venues
 - Teams
 - Referees
@@ -93,6 +99,8 @@ Import data from CSV files for:
 - Matches
 
 Match imports automatically resolve related entities using case-insensitive name matching while validating all foreign-key relationships.
+
+Teams and venues reference the countries table. Teams require a country and are uniquely identified by the combination of team name and country. Match CSV files include _home_country_ and _away_country_ alongside the corresponding team names so imports resolve the intended teams unambiguously.
 
 Imports are additive: when a CSV row identifies a venue, team, competition, referee or match that already exists, the row is skipped and the stored record is left unchanged. To change an existing record, edit it in the application rather than re-importing it.
 
@@ -102,7 +110,7 @@ The same data can be exported from the command line:
 rugby-import --type matches --input matches.csv
 ```
 
-Supported types are _competitions_, _venues_, _teams_, _referees_, and _matches_. The convenience wrapper accepts the same values:
+Supported types are _countries_, _competitions_, _venues_, _teams_, _referees_, and _matches_. The convenience wrapper accepts the same values:
 
 ```bash
 ./scripts/import.sh matches matches.csv
@@ -114,13 +122,15 @@ Export calculated league tables to CSV for use in spreadsheets or further analys
 
 The CSV Export page can also export all competitions, venues, teams, referees, and matches using the same schemas accepted by CSV Import. Export filenames have editable, type-specific defaults.
 
+Exports can be filtered to one competition. A filtered export contains only that competition, its matches, participating teams, appointed referees, match venues, and the participating teams' home venues.
+
 The same data can be exported from the command line:
 
 ```bash
 rugby-export --type matches --output matches.csv
 ```
 
-Supported types are _competitions_, _venues_, _teams_, _referees_, and _matches_. The convenience wrapper accepts the same values:
+Supported types are _countries_, _competitions_, _venues_, _teams_, _referees_, and _matches_. The convenience wrapper accepts the same values:
 
 ```bash
 ./scripts/export.sh matches matches.csv

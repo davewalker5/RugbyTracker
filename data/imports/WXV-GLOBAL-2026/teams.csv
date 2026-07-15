@@ -1,13 +1,13 @@
-name,gender,home_venue
-Australia Women,Women,Stadium Australia
-Canada Women,Women,TD Place Stadium
-England Women,Women,Twickenham Stadium
-France Women,Women,Stade Marcel-Deflandre
-Ireland Women,Women,Dexcom Stadium
-Italy Women,Women,Stadio Omero Tognon
-New Zealand Women,Women,FMG Stadium Waikato
-Scotland Women,Women,Edinburgh Rugby Stadium
-South Africa Women,Women,Athlone Stadium
-USA Women,Women,Sports Illustrated Stadium
-Wales Women,Women,Cardiff Arms Park
-Japan Women,Women,Prince Chichibu Memorial Rugby Stadium
+name,country,gender,home_venue
+Black Ferns,New Zealand Women,Women,FMG Stadium Waikato
+Canada Women,Canada Women,Women,TD Place Stadium
+Girls in Green,Ireland,Women,Aviva Stadium
+Le Azzurre,Italy,Women,Stadio Sergio Lanfranchi
+Les Bleues,France,Women,Stade de France
+Red Roses,England,Women,Twickenham Stadium
+Sakura Fifteen,Japan Women,Women,Prince Chichibu Memorial Rugby Stadium
+Scotland Women,Scotland,Women,Hive Stadium
+Springbok Women,South Africa Women,Women,Athlone Stadium
+Wales Women,Wales,Women,Cardiff Arms Park
+Wallaroos,Australia Women,Women,Stadium Australia
+Women's Eagles,USA Women,Women,Sports Illustrated Stadium

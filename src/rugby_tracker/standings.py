@@ -171,6 +171,17 @@ RULESETS = {
         _INTERNATIONAL_TABLE,
         AwardRules(champion=True),
     ),
+    "nations_2026": Ruleset(
+        "nations_2026",
+        "Nations Championship Series (2026)",
+        # Each geographic series contains three cross-hemisphere fixtures per team.
+        CompetitionFormat(team_count=12, matches_per_team=3),
+        _INTERNATIONAL_SCORING,
+        LeagueTableRules(
+            ("competition_points", "wins", "points_difference", "tries_for")
+        ),
+        AwardRules(champion=True),
+    ),
 }
 
 
@@ -180,6 +191,7 @@ class Standing:
 
     team_id: int
     team: str
+    country: str = ""
     played: int = 0
     won: int = 0
     drawn: int = 0
@@ -218,6 +230,7 @@ class Standing:
         return {
             "Pos": position,
             "Team": self.team,
+            "Country": self.country,
             "P": self.played,
             "W": self.won,
             "D": self.drawn,
@@ -236,7 +249,7 @@ class Standing:
 
 
 TABLE_COLUMNS = (
-    "Pos", "Team", "P", "W", "D", "L", "PF", "PA", "PD", "TF", "TA",
+    "Pos", "Team", "Country", "P", "W", "D", "L", "PF", "PA", "PD", "TF", "TA",
     "TBP", "LBP", "GSBP", "BP", "Pts",
 )
 
@@ -359,11 +372,17 @@ def _aggregate(matches: list[dict[str, Any]], ruleset: Ruleset) -> dict[int, Sta
     for match in _included_matches(matches, ruleset):
         home = standings.setdefault(
             int(match["home_team_id"]),
-            Standing(int(match["home_team_id"]), str(match["home_team_name"])),
+            Standing(
+                int(match["home_team_id"]), str(match["home_team_name"]),
+                str(match.get("home_team_country") or ""),
+            ),
         )
         away = standings.setdefault(
             int(match["away_team_id"]),
-            Standing(int(match["away_team_id"]), str(match["away_team_name"])),
+            Standing(
+                int(match["away_team_id"]), str(match["away_team_name"]),
+                str(match.get("away_team_country") or ""),
+            ),
         )
         if not _is_completed(match):
             continue
@@ -410,6 +429,7 @@ def _ranking_key(standing: Standing, ruleset: Ruleset) -> tuple[int, ...]:
     """
     values = {
         "competition_points": standing.league_points,
+        "wins": standing.won,
         "points_difference": standing.points_difference,
         "tries_for": standing.tries_for,
     }

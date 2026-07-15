@@ -19,16 +19,36 @@ from rugby_tracker.standings import RULESETS
 WIN_BACKGROUND = "#d9ead3"
 LOSS_BACKGROUND = "#f4cccc"
 DRAW_BACKGROUND = "#fff2cc"
+MEN_AND_WOMEN = "Men and Women"
+GENDER_FILTERS = (MEN_AND_WOMEN, *GENDERS)
+
+
+def _filter_by_gender(
+    records: list[dict[str, Any]], selected_gender: str
+) -> list[dict[str, Any]]:
+    """Filter gendered records while supporting an inclusive default.
+
+    :param records: Team or competition rows containing a ``gender`` value.
+    :param selected_gender: ``All``, ``Men``, or ``Women``.
+    :return: Every record for ``All`` or records matching the selected gender.
+    """
+    if selected_gender == MEN_AND_WOMEN:
+        return records
+    return [row for row in records if row.get("gender") == selected_gender]
 
 
 def _style_match_results(table: pd.DataFrame, matches: list[dict[str, Any]]) -> Styler:
     """Colour the team cells in completed fixtures according to the result.
 
-    :param table: Display-ready matches table with ``Home`` and ``Away`` columns.
+    :param table: Display-ready table with home/away team and country columns.
     :param matches: Match records corresponding positionally to the table rows.
     :return: Styled table with winner, loser, and draw backgrounds applied.
     """
     styled = table.style
+    side_columns = {
+        "Home": ["Home", "Home Country"],
+        "Away": ["Away", "Away Country"],
+    }
     for index, match in enumerate(matches):
         home_score = match["home_score"]
         away_score = match["away_score"]
@@ -36,18 +56,18 @@ def _style_match_results(table: pd.DataFrame, matches: list[dict[str, Any]]) -> 
             continue
         if home_score == away_score:
             styled.set_properties(
-                subset=pd.IndexSlice[[index], ["Home", "Away"]],
+                subset=pd.IndexSlice[[index], side_columns["Home"] + side_columns["Away"]],
                 **{"background-color": DRAW_BACKGROUND},
             )
             continue
         winner = "Home" if home_score > away_score else "Away"
         loser = "Away" if winner == "Home" else "Home"
         styled.set_properties(
-            subset=pd.IndexSlice[[index], [winner]],
+            subset=pd.IndexSlice[[index], side_columns[winner]],
             **{"background-color": WIN_BACKGROUND},
         )
         styled.set_properties(
-            subset=pd.IndexSlice[[index], [loser]],
+            subset=pd.IndexSlice[[index], side_columns[loser]],
             **{"background-color": LOSS_BACKGROUND},
         )
     return styled
@@ -160,6 +180,7 @@ def _entity_page(
     delete: Callable[[int], None],
     columns: dict[str, str],
     connection: Any,
+    gender_filter_key: str | None = None,
 ) -> None:
     """Render a reusable list and CRUD form for a reference entity.
 
@@ -171,9 +192,19 @@ def _entity_page(
     :param delete: Callback that deletes an entity by identifier.
     :param columns: Mapping of record keys to table headings.
     :param connection: Active database connection for commits.
+    :param gender_filter_key: Optional widget key enabling the gender table filter.
     :return: None.
     """
     st.header(title)
+    if gender_filter_key is not None:
+        # Keep filtering outside the edit form so changing it immediately refreshes the table.
+        selected_gender = st.selectbox(
+            "Gender",
+            GENDER_FILTERS,
+            index=0,
+            key=gender_filter_key,
+        )
+        records = _filter_by_gender(records, selected_gender)
     selected = None
     table_key = f"{singular}_table"
     if records:
@@ -219,7 +250,8 @@ def venues_page(service: RugbyService, connection: Any) -> None:
     :param connection: Active database connection for commits.
     :return: None.
     """
-    records = service.list_venues()
+    records, countries = service.list_venues(), service.list_countries()
+    country_options = _options(countries)
 
     def fields(row: dict[str, Any] | None) -> dict[str, Any]:
         """Render venue fields and collect their values.
@@ -230,7 +262,10 @@ def venues_page(service: RugbyService, connection: Any) -> None:
         return {
             "name": st.text_input("Name *", value=row["name"] if row else ""),
             "town_city": st.text_input("Town/City", value=(row["town_city"] or "") if row else ""),
-            "country": st.text_input("Country", value=(row["country"] or "") if row else ""),
+            "country_id": _select(
+                "Country", country_options, row["country_id"] if row else None,
+                optional=True,
+            ),
         }
 
     _entity_page("Venues", "venue", records, fields, service.save_venue,
@@ -246,11 +281,16 @@ def teams_page(service: RugbyService, connection: Any) -> None:
     :return: None.
     """
     records, venues = service.list_teams(), service.list_venues()
+    countries = service.list_countries()
     venue_options = _options(venues)
+    country_options = _options(countries)
     venue_names = {row["id"]: row["name"] for row in venues}
-    if not venues:
+    if not venues or not countries:
         st.header("Teams")
-        st.warning("Add a venue before adding a team.")
+        missing = "countries and venues" if not countries and not venues else (
+            "countries" if not countries else "a venue"
+        )
+        st.warning(f"Import {missing} before adding a team.")
         return
 
     def fields(row: dict[str, Any] | None) -> dict[str, Any]:
@@ -261,6 +301,9 @@ def teams_page(service: RugbyService, connection: Any) -> None:
         """
         return {
             "name": st.text_input("Name *", value=row["name"] if row else ""),
+            "country_id": _select(
+                "Country *", country_options, row["country_id"] if row else None
+            ),
             "gender": st.selectbox(
                 "Category *",
                 GENDERS,
@@ -273,7 +316,10 @@ def teams_page(service: RugbyService, connection: Any) -> None:
     display_rows = [{**row, "home_venue": venue_names.get(row["home_venue_id"], "")} for row in records]
     _entity_page("Teams", "team", display_rows, fields, service.save_team,
                  lambda entity_id: service.delete("team", entity_id),
-                 {"name": "Name", "gender": "Category", "home_venue": "Home venue"}, connection)
+                 {
+                     "name": "Name", "country": "Country", "gender": "Category",
+                     "home_venue": "Home venue",
+                 }, connection, gender_filter_key="teams_gender_filter")
 
 
 def competitions_page(service: RugbyService, connection: Any) -> None:
@@ -323,7 +369,8 @@ def competitions_page(service: RugbyService, connection: Any) -> None:
     _entity_page("Competitions", "competition", display_rows,
                  fields, service.save_competition,
                  lambda entity_id: service.delete("competition", entity_id),
-                 {"name": "Name", "season": "Season", "gender": "Category", "ruleset_label": "Ruleset"}, connection)
+                 {"name": "Name", "season": "Season", "gender": "Category", "ruleset_label": "Ruleset"},
+                 connection, gender_filter_key="competitions_gender_filter")
 
 
 def referees_page(service: RugbyService, connection: Any) -> None:
@@ -345,6 +392,30 @@ def referees_page(service: RugbyService, connection: Any) -> None:
 
     _entity_page("Referees", "referee", records, fields, service.save_referee,
                  lambda entity_id: service.delete("referee", entity_id), {"name": "Name"}, connection)
+
+
+def countries_page(service: RugbyService, connection: Any) -> None:
+    """Render the country CRUD page.
+
+    :param service: Business service used for country operations.
+    :param connection: Active database connection for commits.
+    :return: None.
+    """
+    records = service.list_countries()
+
+    def fields(row: dict[str, Any] | None) -> dict[str, Any]:
+        """Render the country name field and collect its value.
+
+        :param row: Existing country row, or ``None`` for a new country.
+        :return: Values entered in the country form.
+        """
+        return {"name": st.text_input("Name *", value=row["name"] if row else "")}
+
+    _entity_page(
+        "Countries", "country", records, fields, service.save_country,
+        lambda entity_id: service.delete("country", entity_id), {"name": "Name"},
+        connection,
+    )
 
 
 def matches_page(service: RugbyService, connection: Any) -> None:
@@ -380,7 +451,10 @@ def matches_page(service: RugbyService, connection: Any) -> None:
         table = pd.DataFrame([{
             "Date": row["match_date"], "Competition": f"{row['competition_name']} {row['competition_season']}",
             "Round": row["round"] or "—", "Venue": row["venue_name"] or "TBC",
-            "Home": row["home_team_name"], "Away": row["away_team_name"],
+            "Home": row["home_team_name"],
+            "Home Country": row["home_team_country"],
+            "Away": row["away_team_name"],
+            "Away Country": row["away_team_country"],
             "Score": "Fixture" if row["home_score"] is None else f"{row['home_score']}–{row['away_score']}",
             "Tries": "Fixture" if row["home_tries"] is None else f"{row['home_tries']}–{row['away_tries']}",
         } for row in matches])
@@ -423,11 +497,19 @@ def matches_page(service: RugbyService, connection: Any) -> None:
         referee_id = _select("Referee", _options(referees), selected["referee_id"] if selected else None, optional=True)
         left, right = st.columns(2)
         with left:
-            home_team_id = _select("Home team *", _options(teams), selected["home_team_id"] if selected else None)
+            home_team_id = _select(
+                "Home team *",
+                _options(teams, lambda row: f"{row['name']} — {row['country']}"),
+                selected["home_team_id"] if selected else None,
+            )
             home_tries = st.text_input("Home tries", value=str(selected["home_tries"]) if selected and selected["home_tries"] is not None else "")
             home_score = st.text_input("Home score", value=str(selected["home_score"]) if selected and selected["home_score"] is not None else "")
         with right:
-            away_team_id = _select("Away team *", _options(teams), selected["away_team_id"] if selected else None)
+            away_team_id = _select(
+                "Away team *",
+                _options(teams, lambda row: f"{row['name']} — {row['country']}"),
+                selected["away_team_id"] if selected else None,
+            )
             away_tries = st.text_input("Away tries", value=str(selected["away_tries"]) if selected and selected["away_tries"] is not None else "")
             away_score = st.text_input("Away score", value=str(selected["away_score"]) if selected and selected["away_score"] is not None else "")
         st.caption("Leave all four try and score fields blank to save a future fixture.")
@@ -528,7 +610,7 @@ def import_page(connection: Any) -> None:
     """
     st.header("CSV Import")
     st.write(
-        "Import venues, teams, competitions, referees, fixtures, and results. "
+        "Import countries, venues, teams, competitions, referees, fixtures, and results. "
         "Names are matched without regard to capitalisation. Invalid rows are reported and refused."
     )
     entity_type = st.selectbox(
@@ -548,7 +630,14 @@ def import_page(connection: Any) -> None:
         mime="text/csv",
     )
     if entity_type == "Teams":
-        st.caption("Home venues must already exist and are matched using the home_venue column.")
+        st.caption(
+            "Countries and home venues must already exist and are matched using the "
+            "country and home_venue columns."
+        )
+    elif entity_type == "Venues":
+        st.caption(
+            "A supplied country must already exist and is matched using the country column."
+        )
     elif entity_type == "Matches":
         st.caption(
             "Competitions are matched by name and season. Venues, referees, and teams must "
@@ -600,7 +689,10 @@ def export_page(connection: Any) -> None:
     """
     # Keep the control layout parallel with CSV Import for familiarity.
     st.header("CSV Export")
-    st.write("Export competitions, venues, teams, referees, fixtures, and results as CSV.")
+    st.write(
+        "Export countries, competitions, venues, teams, referees, fixtures, and results as CSV."
+    )
+    competitions = RugbyService(connection).list_competitions()
     entity_type = st.selectbox(
         "Record type",
         EXPORT_TYPES,
@@ -608,6 +700,18 @@ def export_page(connection: Any) -> None:
         placeholder="Select an export type",
         key="csv_export_type",
         on_change=_reset_export_file_stem,
+    )
+    competition_filter = st.selectbox(
+        "Competition",
+        ["All", *[int(row["id"]) for row in competitions]],
+        index=0,
+        format_func=lambda value: (
+            "All" if value == "All" else next(
+                f"{row['name']} — {row['season']}"
+                for row in competitions if int(row["id"]) == value
+            )
+        ),
+        key="csv_export_competition",
     )
     file_stem = st.text_input("File stem", key="csv_export_file_stem")
     validation_error = _export_validation_error(entity_type, file_stem)
@@ -619,7 +723,8 @@ def export_page(connection: Any) -> None:
     else:
         # Only render the browser download control after both required values pass.
         assert entity_type is not None
-        data = CsvExportService(connection).export_csv(entity_type)
+        competition_id = None if competition_filter == "All" else int(competition_filter)
+        data = CsvExportService(connection).export_csv(entity_type, competition_id)
         st.download_button(
             "Download",
             data,
@@ -665,6 +770,7 @@ def main() -> None:
         "Navigate",
         (
             "League Table", "Matches", "Competitions", "Teams", "Venues", "Referees",
+            "Countries",
             "CSV Import", "CSV Export",
         ),
         horizontal=True,
@@ -683,6 +789,7 @@ def main() -> None:
             "Teams": lambda: teams_page(service, connection),
             "Venues": lambda: venues_page(service, connection),
             "Referees": lambda: referees_page(service, connection),
+            "Countries": lambda: countries_page(service, connection),
         }
         pages[page]()
     finally:

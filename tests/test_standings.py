@@ -48,13 +48,13 @@ def test_table_calculates_every_required_column_and_order():
     table = calculate_table(matches, "prem_2025_26")
 
     assert table == [
-        {"Pos": 1, "Team": "Charlie", "P": 2, "W": 1, "D": 1, "L": 0,
+        {"Pos": 1, "Team": "Charlie", "Country": "", "P": 2, "W": 1, "D": 1, "L": 0,
          "PF": 60, "PA": 30, "PD": 30, "TF": 9, "TA": 6,
          "TBP": 2, "LBP": 0, "GSBP": 0, "BP": 2, "Pts": 8},
-        {"Pos": 2, "Team": "Alpha", "P": 2, "W": 1, "D": 0, "L": 1,
+        {"Pos": 2, "Team": "Alpha", "Country": "", "P": 2, "W": 1, "D": 0, "L": 1,
          "PF": 40, "PA": 65, "PD": -25, "TF": 6, "TA": 8,
          "TBP": 1, "LBP": 0, "GSBP": 0, "BP": 1, "Pts": 5},
-        {"Pos": 3, "Team": "Bravo", "P": 2, "W": 0, "D": 1, "L": 1,
+        {"Pos": 3, "Team": "Bravo", "Country": "", "P": 2, "W": 0, "D": 1, "L": 1,
          "PF": 45, "PA": 50, "PD": -5, "TF": 7, "TA": 8,
          "TBP": 1, "LBP": 1, "GSBP": 0, "BP": 2, "Pts": 4},
     ]
@@ -118,7 +118,7 @@ def test_2025_26_rulesets_have_independent_identifiers_and_currently_same_result
     matches = [match(1, "Alpha", 2, "Bravo", 31, 27, 4, 4)]
     assert set(RULESETS) == {
         "prem_2025_26", "pwr_2025_26", "m6n", "w6n",
-        "wxv_global_2026", "wxv_challenger_2026",
+        "wxv_global_2026", "wxv_challenger_2026", "nations_2026",
     }
     assert calculate_table(matches, "prem_2025_26") == calculate_table(matches, "pwr_2025_26")
 
@@ -142,6 +142,40 @@ def test_wxv_rulesets_use_international_scoring_and_published_structures():
     )
 
 
+def test_nations_championship_ruleset_is_shared_by_both_geographic_series():
+    """Verify the shared 2026 Nations Championship series configuration.
+
+    :return: None.
+    """
+    ruleset = RULESETS["nations_2026"]
+
+    # A geographic series is one three-round window involving all twelve teams.
+    assert ruleset.competition.team_count == 12
+    assert ruleset.competition.matches_per_team == 3
+    assert ruleset.scoring == RULESETS["wxv_global_2026"].scoring
+    assert ruleset.league_table.tie_breakers == (
+        "competition_points", "wins", "points_difference", "tries_for"
+    )
+
+
+def test_nations_championship_uses_wins_before_points_difference():
+    """Rank equal competition points by wins before points difference.
+
+    :return: None.
+    """
+    matches = [
+        match(1, "One Win", 2, "Opponent A", 10, 9, 0, 0),
+        match(3, "Opponent B", 1, "One Win", 100, 0, 0, 0),
+        match(4, "No Wins", 5, "Opponent C", 3, 3, 0, 0),
+        match(4, "No Wins", 6, "Opponent D", 6, 6, 0, 0),
+    ]
+
+    table = calculate_table(matches, "nations_2026")
+    positions = {row["Team"]: row["Pos"] for row in table}
+
+    assert positions["One Win"] < positions["No Wins"]
+
+
 def test_unknown_ruleset_is_rejected():
     with pytest.raises(ValueError, match="Unknown league-table ruleset"):
         calculate_table([], "unknown")
@@ -154,7 +188,7 @@ def test_table_csv_has_the_required_columns_and_rows():
     )
     rows = list(csv.DictReader(io.StringIO(table_to_csv(table))))
     assert list(rows[0]) == [
-        "Pos", "Team", "P", "W", "D", "L", "PF", "PA", "PD", "TF", "TA",
+        "Pos", "Team", "Country", "P", "W", "D", "L", "PF", "PA", "PD", "TF", "TA",
         "TBP", "LBP", "GSBP", "BP", "Pts",
     ]
     assert rows[0]["Team"] == "Alpha"
@@ -185,6 +219,7 @@ def test_service_requires_ruleset_then_calculates_and_exports(service, core_reco
     )
     result = service.league_table(core_records["competition"])
     assert result["table"][0]["Team"] == "Bath"
+    assert result["table"][0]["Country"] == "Bath"
     assert result["table"][0]["Pts"] == 5
     assert "Bath" in service.league_table_csv(core_records["competition"])
 

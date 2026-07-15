@@ -98,8 +98,11 @@ class RugbyRepository:
         :return: None.
         """
         self.connection = connection
-        self.venues = Repository(connection, "venues", ("name", "town_city", "country"))
-        self.teams = Repository(connection, "teams", ("name", "gender", "home_venue_id"))
+        self.countries = Repository(connection, "countries", ("name",))
+        self.venues = Repository(connection, "venues", ("name", "town_city", "country_id"))
+        self.teams = Repository(
+            connection, "teams", ("name", "country_id", "gender", "home_venue_id")
+        )
         self.competitions = Repository(
             connection, "competitions", ("name", "season", "gender", "ruleset")
         )
@@ -114,6 +117,36 @@ class RugbyRepository:
             ),
         )
 
+    def list_venues(self) -> list[dict[str, Any]]:
+        """List venues with their referenced country names.
+
+        :return: Venue rows containing both country identifier and name.
+        """
+        rows = self.connection.execute(
+            """
+            SELECT v.*, c.name AS country
+            FROM venues v
+            LEFT JOIN countries c ON c.id = v.country_id
+            ORDER BY v.name COLLATE NOCASE, v.id
+            """
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def list_teams(self) -> list[dict[str, Any]]:
+        """List teams with their referenced country names.
+
+        :return: Team rows containing both country identifier and name.
+        """
+        rows = self.connection.execute(
+            """
+            SELECT t.*, c.name AS country
+            FROM teams t
+            JOIN countries c ON c.id = t.country_id
+            ORDER BY t.name COLLATE NOCASE, t.id
+            """
+        ).fetchall()
+        return [dict(row) for row in rows]
+
     def list_matches(self, competition_id: int | None = None) -> list[dict[str, Any]]:
         """List matches with their related entity names in fixture order.
 
@@ -126,13 +159,16 @@ class RugbyRepository:
             f"""
             SELECT m.*, c.name AS competition_name, c.season AS competition_season,
                    v.name AS venue_name, r.name AS referee_name,
-                   h.name AS home_team_name, a.name AS away_team_name
+                   h.name AS home_team_name, hc.name AS home_team_country,
+                   a.name AS away_team_name, ac.name AS away_team_country
             FROM matches m
             JOIN competitions c ON c.id = m.competition_id
             LEFT JOIN venues v ON v.id = m.venue_id
             LEFT JOIN referees r ON r.id = m.referee_id
             JOIN teams h ON h.id = m.home_team_id
             JOIN teams a ON a.id = m.away_team_id
+            JOIN countries hc ON hc.id = h.country_id
+            JOIN countries ac ON ac.id = a.country_id
             {where}
             ORDER BY m.match_date, COALESCE(m.kickoff_time, ''), m.id
             """,
