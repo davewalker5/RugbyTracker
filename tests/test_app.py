@@ -98,6 +98,7 @@ def test_csv_export_defaults_and_resets_file_stem(monkeypatch, tmp_path):
     app.radio[0].set_value("CSV Export").run()
 
     assert app.selectbox[0].value is None
+    assert app.selectbox[1].value == "All"
     assert app.text_input[0].value == ""
     assert app.button[0].label == "Download"
     app.button[0].click().run()
@@ -247,11 +248,15 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
             app.run()
             assert [field.value for field in app.text_input[:2]] == ["Bath", "Bath"]
 
-    for page in ("CSV Import", "CSV Export"):
-        app.radio[0].set_value(page).run()
-        assert not app.exception, page
-        assert app.selectbox, page
-        assert all(selector.value is None for selector in app.selectbox), page
+    app.radio[0].set_value("CSV Import").run()
+    assert not app.exception
+    assert app.selectbox
+    assert all(selector.value is None for selector in app.selectbox)
+
+    app.radio[0].set_value("CSV Export").run()
+    assert not app.exception
+    assert app.selectbox[0].value is None
+    assert app.selectbox[1].value == "All"
 
     app.radio[0].set_value("Competitions").run()
     app.session_state["competition_table"] = {"selection": {"rows": [0]}}

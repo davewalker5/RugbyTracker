@@ -644,6 +644,7 @@ def export_page(connection: Any) -> None:
     # Keep the control layout parallel with CSV Import for familiarity.
     st.header("CSV Export")
     st.write("Export competitions, venues, teams, referees, fixtures, and results as CSV.")
+    competitions = RugbyService(connection).list_competitions()
     entity_type = st.selectbox(
         "Record type",
         EXPORT_TYPES,
@@ -651,6 +652,18 @@ def export_page(connection: Any) -> None:
         placeholder="Select an export type",
         key="csv_export_type",
         on_change=_reset_export_file_stem,
+    )
+    competition_filter = st.selectbox(
+        "Competition",
+        ["All", *[int(row["id"]) for row in competitions]],
+        index=0,
+        format_func=lambda value: (
+            "All" if value == "All" else next(
+                f"{row['name']} — {row['season']}"
+                for row in competitions if int(row["id"]) == value
+            )
+        ),
+        key="csv_export_competition",
     )
     file_stem = st.text_input("File stem", key="csv_export_file_stem")
     validation_error = _export_validation_error(entity_type, file_stem)
@@ -662,7 +675,8 @@ def export_page(connection: Any) -> None:
     else:
         # Only render the browser download control after both required values pass.
         assert entity_type is not None
-        data = CsvExportService(connection).export_csv(entity_type)
+        competition_id = None if competition_filter == "All" else int(competition_filter)
+        data = CsvExportService(connection).export_csv(entity_type, competition_id)
         st.download_button(
             "Download",
             data,

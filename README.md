@@ -119,6 +119,8 @@ Export calculated league tables to CSV for use in spreadsheets or further analys
 
 The CSV Export page can also export all competitions, venues, teams, referees, and matches using the same schemas accepted by CSV Import. Export filenames have editable, type-specific defaults.
 
+Exports can be filtered to one competition. A filtered export contains only that competition, its matches, participating teams, appointed referees, match venues, and the participating teams' home venues.
+
 The same data can be exported from the command line:
 
 ```bash

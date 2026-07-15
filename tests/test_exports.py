@@ -58,3 +58,64 @@ def test_empty_csv_export_still_contains_the_import_header(connection):
     exporter = CsvExportService(connection)
 
     assert exporter.export_csv("Venues") == "name,town_city,country\r\n"
+
+
+def test_competition_filter_exports_only_related_records(
+    service, core_records, connection
+):
+    """Limit every export type to one competition and its dependencies.
+
+    :param service: Rugby service backed by the test database.
+    :param core_records: Identifiers for existing reference records.
+    :param connection: Open test database connection.
+    :return: None.
+    """
+    neutral_venue = service.save_venue(
+        name="Neutral Ground", town_city="London", country="England"
+    )
+    unrelated_venue = service.save_venue(
+        name="Unrelated Ground", town_city="Paris", country="France"
+    )
+    unrelated_team = service.save_team(
+        name="Unrelated", country="France", gender="Men",
+        home_venue_id=unrelated_venue,
+    )
+    unrelated_competition = service.save_competition(
+        name="Other League", season="2025/26", gender="Men"
+    )
+    unrelated_referee = service.save_referee(name="Unrelated Referee")
+    service.save_match(
+        competition_id=core_records["competition"],
+        venue_id=neutral_venue,
+        referee_id=core_records["referee"],
+        match_date="2025-09-20",
+        home_team_id=core_records["home"],
+        away_team_id=core_records["away"],
+    )
+    service.save_match(
+        competition_id=unrelated_competition,
+        venue_id=unrelated_venue,
+        referee_id=unrelated_referee,
+        match_date="2025-09-21",
+        home_team_id=unrelated_team,
+        away_team_id=core_records["home"],
+    )
+    exporter = CsvExportService(connection)
+
+    def rows(entity_type: str) -> list[dict[str, str]]:
+        """Parse one competition-filtered export.
+
+        :param entity_type: Supported export record type.
+        :return: Parsed CSV rows.
+        """
+        return list(csv.DictReader(io.StringIO(
+            exporter.export_csv(entity_type, core_records["competition"])
+        )))
+
+    assert {row["name"] for row in rows("Competitions")} == {"Premiership Rugby"}
+    assert {row["name"] for row in rows("Teams")} == {"Bath", "Leicester Tigers"}
+    assert {row["name"] for row in rows("Referees")} == {"Luke Pearce"}
+    assert {row["name"] for row in rows("Venues")} == {
+        "Neutral Ground", "The Rec", "Welford Road",
+    }
+    assert {row["competition"] for row in rows("Matches")} == {"Premiership Rugby"}
