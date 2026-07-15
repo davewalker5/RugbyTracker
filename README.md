@@ -8,25 +8,31 @@
 
 ## Overview
 
-The Rugby Tracker is a lightweight desktop application for recording rugby fixtures, results and competition standings.
+Rugby Tracker is a desktop application for recording, analysing and exploring professional rugby union competitions.
 
-The primary goal is to provide a simple, self-contained database for tracking competitions such as Premiership Rugby, Premiership Women's Rugby (PWR), the Six Nations and other domestic or international tournaments.
+It combines structured competition data, accurate competition modelling and supporter-focused analysis in a single application. Rather than acting as a live scoring service, Rugby Tracker provides a long-term reference for fixtures, results, league tables and season performance across domestic and international competitions.
 
-Rather than acting as a live scoring system, the application is intended to support manual entry and historical record keeping, with automatic calculation of league tables from recorded match results.
+Built using Python, Streamlit and SQLite, the application emphasises simple, maintainable design with a well-structured relational data model. Competition rules are modelled explicitly, allowing league tables and statistics to be calculated consistently across different tournaments.
 
-Built using Python, Streamlit and SQLite, the application follows the same design philosophy as the other Field Notes projects: a simple, well-structured desktop application with an understandable relational data model, incremental development and clear, maintainable code.
+Alongside fixture and results management, Rugby Tracker now includes integrated analysis reports designed to help supporters better understand a team's season without requiring specialist statistical knowledge.
 
-## Current Features
+---
+
+## Competition Tracking Features
+
+Rugby Tracker currently provides:
 
 ### Competition Database
 
-Maintain reference data for:
+Maintain structured reference data for:
 
-- Countries through CSV import, export, and a maintenance tab
+- Countries
 - Venues
 - Teams
 - Competitions
 - Referees
+
+Teams are linked to countries, while venues also reference their host country. This enables more accurate modelling of competitions involving teams with similar names and supports richer reporting.
 
 ### Match Recording
 
@@ -45,9 +51,7 @@ Rounds may be numeric or descriptive knockout stages such as _Quarter-Final_, _S
 
 ### Automatic League Tables
 
-Automatically calculate league standings directly from recorded match results.
-
-The tracker calculates:
+Automatically calculate league standings directly from recorded match results. The tracker calculates:
 
 - Played
 - Won
@@ -65,27 +69,47 @@ The tracker calculates:
 - League Points
 
 League tables are calculated dynamically rather than stored in the database.
-Each table identifies the team and its country before showing the calculated statistics.
 
-For the Premiership Rugby and Premiership Women's Rugby rulesets, matches marked _Quarter-Final_, _Semi-Final_ or _Final_ are excluded from the league table. Teams are ranked by league points and then points difference, both descending.
+## Supported Competitions
 
-For the Men's and Women's Six Nations rulesets, the tracker validates the six-team, 15-match single round robin and ranks teams by competition points, points difference and tries scored. Once every result is present, it also determines the champion (including a shared title), Grand Slam, Triple Crown and Wooden Spoon.
+Current rulesets include:
 
-For the 2026 WXV Global Series and Global Series Challenger rulesets, the tracker supports the published selected-fixture formats and ranks teams by competition points, points difference and tries scored.
-
-For the 2026 Nations Championship Southern and Northern Series, the tracker supports the published cross-hemisphere fixtures and shared match-points rules. Teams are ranked by competition points, wins, points difference and then tries scored.
-
-### Competition Rules
-
-Support for competition-specific points systems, including:
-
-- Premiership Rugby (2025/26)
-- Premiership Women's Rugby (2025/26)
+- Premiership Rugby (PREM)
+- Premiership Women's Rugby (PWR)
 - Men's Six Nations
 - Women's Six Nations
-- WXV Global Series (2026)
-- WXV Global Series Challenger (2026)
-- Nations Championship Series (2026)
+- WXV Global Series
+- WXV Global Series Challenger
+- Nations Championship Southern Series
+- Nations Championship Northern Series
+
+Additional competitions are added as their structures and regulations become established.
+
+---
+
+## Analysis Features
+
+### Team Analysis
+
+The Analysis section provides supporter-focused reports built directly from the recorded competition data. The first integrated report is **Team Summary**, allowing supporters to explore a team's season from a single screen.
+
+The report includes:
+
+- Team overview
+- Season record
+- League performance
+- Scoring summary
+- Try summary
+- Home and away performance
+- Biggest wins and defeats
+- Highest and lowest scoring matches
+- Results breakdown charts
+- Points scored and conceded through the season
+- Chronological match history
+
+Reports can also be exported as formatted PDF documents for sharing or offline reference.
+
+## Data Exchange Features
 
 ### CSV Import
 
@@ -135,6 +159,10 @@ Supported types are _countries_, _competitions_, _venues_, _teams_, _referees_, 
 ```bash
 ./scripts/export.sh matches matches.csv
 ```
+
+CSV export complements the integrated analysis reports by making the same competition data available for external tools such as spreadsheets, Jupyter notebooks or other analytical workflows.
+
+---
 
 ## Feedback
 
