@@ -10,9 +10,11 @@ def test_parser_accepts_short_and_long_options(tmp_path):
     csv_file = tmp_path / "venues.csv"
     short = build_parser().parse_args(("-t", "venues", "-i", str(csv_file)))
     long = build_parser().parse_args(("--type", "teams", "--input", str(csv_file)))
+    countries = build_parser().parse_args(("--type", "countries", "--input", str(csv_file)))
     assert short.import_type == "venues"
     assert short.input_path == csv_file
     assert long.import_type == "teams"
+    assert countries.import_type == "countries"
 
 
 def test_cli_imports_valid_csv(monkeypatch, tmp_path, capsys):

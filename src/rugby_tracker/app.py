@@ -571,7 +571,7 @@ def import_page(connection: Any) -> None:
     """
     st.header("CSV Import")
     st.write(
-        "Import venues, teams, competitions, referees, fixtures, and results. "
+        "Import countries, venues, teams, competitions, referees, fixtures, and results. "
         "Names are matched without regard to capitalisation. Invalid rows are reported and refused."
     )
     entity_type = st.selectbox(
@@ -643,7 +643,9 @@ def export_page(connection: Any) -> None:
     """
     # Keep the control layout parallel with CSV Import for familiarity.
     st.header("CSV Export")
-    st.write("Export competitions, venues, teams, referees, fixtures, and results as CSV.")
+    st.write(
+        "Export countries, competitions, venues, teams, referees, fixtures, and results as CSV."
+    )
     competitions = RugbyService(connection).list_competitions()
     entity_type = st.selectbox(
         "Record type",

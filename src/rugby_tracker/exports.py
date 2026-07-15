@@ -10,9 +10,10 @@ from typing import Any, Callable
 from rugby_tracker.services import RugbyService
 
 
-EXPORT_TYPES = ("Venues", "Teams", "Competitions", "Referees", "Matches")
+EXPORT_TYPES = ("Countries", "Venues", "Teams", "Competitions", "Referees", "Matches")
 
 EXPORT_HEADERS = {
+    "Countries": ("name",),
     "Venues": ("name", "town_city", "country"),
     "Teams": ("name", "country", "gender", "home_venue"),
     "Competitions": ("name", "season", "gender", "ruleset"),
@@ -50,6 +51,7 @@ class CsvExportService:
         # Select the dedicated row builder before writing a consistent header,
         # including when the database does not yet contain any matching records.
         builders: dict[str, Callable[[int | None], list[dict[str, Any]]]] = {
+            "Countries": self._country_rows,
             "Venues": self._venue_rows,
             "Teams": self._team_rows,
             "Competitions": self._competition_rows,
@@ -65,6 +67,15 @@ class CsvExportService:
         writer.writeheader()
         writer.writerows(rows)
         return output.getvalue()
+
+    def _country_rows(self, competition_id: int | None) -> list[dict[str, Any]]:
+        """Build standalone country rows in import-column order.
+
+        :param competition_id: Unused competition filter retained for builder consistency.
+        :return: Country dictionaries ready for CSV writing.
+        """
+        # Countries are not referenced by existing entities yet, so all are exported.
+        return self.rugby.list_countries()
 
     def _venue_rows(self, competition_id: int | None) -> list[dict[str, Any]]:
         """Build venue rows in import-column order.

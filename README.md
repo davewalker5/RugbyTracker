@@ -22,6 +22,7 @@ Built using Python, Streamlit and SQLite, the application follows the same desig
 
 Maintain reference data for:
 
+- Countries through CSV import and export
 - Venues
 - Teams
 - Competitions
@@ -89,6 +90,7 @@ Support for competition-specific points systems, including:
 
 Import data from CSV files for:
 
+- Countries
 - Venues
 - Teams
 - Referees
@@ -107,7 +109,7 @@ The same data can be exported from the command line:
 rugby-import --type matches --input matches.csv
 ```
 
-Supported types are _competitions_, _venues_, _teams_, _referees_, and _matches_. The convenience wrapper accepts the same values:
+Supported types are _countries_, _competitions_, _venues_, _teams_, _referees_, and _matches_. The convenience wrapper accepts the same values:
 
 ```bash
 ./scripts/import.sh matches matches.csv
@@ -127,7 +129,7 @@ The same data can be exported from the command line:
 rugby-export --type matches --output matches.csv
 ```
 
-Supported types are _competitions_, _venues_, _teams_, _referees_, and _matches_. The convenience wrapper accepts the same values:
+Supported types are _countries_, _competitions_, _venues_, _teams_, _referees_, and _matches_. The convenience wrapper accepts the same values:
 
 ```bash
 ./scripts/export.sh matches matches.csv

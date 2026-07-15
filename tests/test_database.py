@@ -10,7 +10,7 @@ from rugby_tracker.database import apply_migrations, connect
 
 
 def test_database_is_empty_after_first_migration(connection):
-    for table in ("venues", "teams", "competitions", "referees", "matches"):
+    for table in ("countries", "venues", "teams", "competitions", "referees", "matches"):
         assert connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == 0
     competition_columns = {
         row["name"] for row in connection.execute("PRAGMA table_info(competitions)").fetchall()
@@ -29,6 +29,20 @@ def test_migrations_are_repeatable(database):
     apply_migrations(database)
     apply_migrations(database)
     assert connect(database).execute("SELECT count(*) FROM venues").fetchone()[0] == 0
+
+
+def test_country_names_are_mandatory_and_case_insensitively_unique(connection):
+    """Enforce the standalone countries table's name constraints.
+
+    :param connection: Empty migrated test database connection.
+    :return: None.
+    """
+    connection.execute("INSERT INTO countries(name) VALUES ('England')")
+
+    with pytest.raises(sqlite3.IntegrityError):
+        connection.execute("INSERT INTO countries(name) VALUES ('ENGLAND')")
+    with pytest.raises(sqlite3.IntegrityError):
+        connection.execute("INSERT INTO countries(name) VALUES ('   ')")
 
 
 def test_foreign_keys_are_enforced(connection):

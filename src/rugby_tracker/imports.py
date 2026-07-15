@@ -20,8 +20,9 @@ from rugby_tracker.services import (
 )
 
 
-IMPORT_TYPES = ("Venues", "Teams", "Competitions", "Referees", "Matches")
+IMPORT_TYPES = ("Countries", "Venues", "Teams", "Competitions", "Referees", "Matches")
 TEMPLATE_HEADERS = {
+    "Countries": ("name",),
     "Venues": ("name", "town_city", "country"),
     "Teams": ("name", "country", "gender", "home_venue"),
     "Competitions": ("name", "season", "gender", "ruleset"),
@@ -34,6 +35,7 @@ TEMPLATE_HEADERS = {
 }
 
 REQUIRED_HEADERS = {
+    "Countries": {"name"},
     "Venues": {"name"},
     "Teams": {"name", "country", "gender", "home_venue"},
     "Competitions": {"name", "season", "gender"},
@@ -145,6 +147,7 @@ class CsvImportService:
         if rows is None:
             return report
         validator = {
+            "Countries": self._validate_country,
             "Venues": self._validate_venue,
             "Teams": self._validate_team,
             "Competitions": self._validate_competition,
@@ -247,6 +250,18 @@ class CsvImportService:
             "gender": gender,
             "home_venue_id": venue_id,
         }, messages
+
+    def _validate_country(
+        self, row: dict[str, str]
+    ) -> tuple[dict[str, Any] | None, list[str]]:
+        """Validate one standalone country import row.
+
+        :param row: Normalised CSV row.
+        :return: Prepared service values and validation messages.
+        """
+        messages: list[str] = []
+        name = self._value(lambda: required_text(row.get("name"), "Country name"), messages)
+        return (None, messages) if messages else ({"name": name}, messages)
 
     def _validate_venue(self, row: dict[str, str]) -> tuple[dict[str, Any] | None, list[str]]:
         """Validate one venue import row.
@@ -580,8 +595,9 @@ class CsvImportService:
         :param entity_type: Supported entity type being imported.
         :return: Set of normalised duplicate-detection keys.
         """
-        if entity_type == "Venues":
-            rows = self.connection.execute("SELECT name FROM venues").fetchall()
+        if entity_type in {"Countries", "Venues"}:
+            table = entity_type.casefold()
+            rows = self.connection.execute(f"SELECT name FROM {table}").fetchall()
             return {(row["name"].casefold(),) for row in rows}
         if entity_type == "Teams":
             rows = self.connection.execute("SELECT name, country FROM teams").fetchall()
@@ -614,7 +630,7 @@ class CsvImportService:
         :return: Duplicate key, or ``None`` when identity cannot be established.
         """
         name = optional_text(row.get("name"))
-        if entity_type in {"Venues", "Referees"}:
+        if entity_type in {"Countries", "Venues", "Referees"}:
             return (name.casefold(),) if name else None
 
         if entity_type == "Teams":
@@ -710,7 +726,7 @@ class CsvImportService:
         :param values: Validated values ready for persistence.
         :return: Normalised tuple used for duplicate detection.
         """
-        if entity_type == "Venues":
+        if entity_type in {"Countries", "Venues"}:
             return (values["name"].casefold(),)
         if entity_type == "Teams":
             return values["name"].casefold(), values["country"].casefold()
@@ -731,6 +747,7 @@ class CsvImportService:
         :return: Identifier of the imported record.
         """
         action = {
+            "Countries": self.rugby.save_country,
             "Venues": self.rugby.save_venue,
             "Teams": self.rugby.save_team,
             "Competitions": self.rugby.save_competition,

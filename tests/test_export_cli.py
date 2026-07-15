@@ -21,10 +21,14 @@ def test_parser_accepts_short_and_long_options(tmp_path):
     long = build_parser().parse_args(
         ("--type", "matches", "--output", str(csv_file))
     )
+    countries = build_parser().parse_args(
+        ("--type", "countries", "--output", str(csv_file))
+    )
 
     assert short.export_type == "venues"
     assert short.output_path == csv_file
     assert long.export_type == "matches"
+    assert countries.export_type == "countries"
 
 
 def test_cli_exports_records_to_the_requested_path(monkeypatch, tmp_path, capsys):

@@ -11,6 +11,7 @@ from rugby_tracker.imports import CsvImportService, ImportReport
 
 
 IMPORT_TYPE_NAMES = {
+    "countries": "Countries",
     "venues": "Venues",
     "teams": "Teams",
     "competitions": "Competitions",

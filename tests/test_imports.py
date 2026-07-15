@@ -17,6 +17,12 @@ def test_templates_have_supported_headers(connection):
 def test_reference_imports_are_case_insensitive_and_repeatable(service, core_records, connection):
     importer = CsvImportService(connection)
 
+    countries = importer.import_csv(
+        "Countries", "name\nEngland\nENGLAND\nScotland\n"
+    )
+    assert (countries.imported, countries.skipped, countries.invalid) == (2, 1, 0)
+    assert [row["name"] for row in service.list_countries()] == ["England", "Scotland"]
+
     teams = importer.import_csv(
         "Teams",
         "name,country,gender,home venue\nGloucester Rugby,England,MEN,the rec\nGloucester Rugby,England,Men,The Rec\n",

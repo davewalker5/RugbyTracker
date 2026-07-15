@@ -33,7 +33,10 @@ def test_csv_exports_use_import_schemas_and_related_names(
     )
     exporter = CsvExportService(connection)
 
+    service.save_country(name="England")
+
     exported = {entity_type: exporter.export_csv(entity_type) for entity_type in EXPORT_TYPES}
+    assert list(csv.DictReader(io.StringIO(exported["Countries"]))) == [{"name": "England"}]
     assert list(csv.DictReader(io.StringIO(exported["Venues"])))[0]["name"] == "The Rec"
     assert list(csv.DictReader(io.StringIO(exported["Teams"])))[0]["home_venue"] == "The Rec"
     assert list(csv.DictReader(io.StringIO(exported["Teams"])))[0]["country"] == "Bath"

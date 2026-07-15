@@ -99,6 +99,26 @@ class RugbyService:
         """
         self.repo = RugbyRepository(connection)
 
+    def list_countries(self) -> list[dict[str, Any]]:
+        """List all standalone country records.
+
+        :return: Country rows represented as dictionaries.
+        """
+        return self.repo.countries.list_all()
+
+    def save_country(self, entity_id: int | None = None, **values: Any) -> int:
+        """Create or update a standalone country record.
+
+        :param entity_id: Existing country identifier, or ``None`` to create one.
+        :param values: Country fields including the mandatory unique name.
+        :return: The saved country's identifier.
+        """
+        return self._save(
+            self.repo.countries,
+            entity_id,
+            {"name": required_text(values.get("name"), "Country name")},
+        )
+
     def list_venues(self) -> list[dict[str, Any]]:
         """List all venues.
 
