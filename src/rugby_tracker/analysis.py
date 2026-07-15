@@ -14,6 +14,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.graphics.charts.barcharts import VerticalBarChart
+from reportlab.graphics.charts.legends import Legend
 from reportlab.graphics.charts.linecharts import HorizontalLineChart
 from reportlab.graphics.shapes import Drawing, String
 from reportlab.platypus import (
@@ -289,10 +290,10 @@ def render_team_summary_pdf(report: TeamSummaryReport) -> bytes:
     completed = [match for match in report.matches if match.result != "—"]
     if completed:
         # Plot match sequence to keep long and inconsistent round labels readable.
-        points_chart = Drawing(170 * mm, 65 * mm)
-        points_chart.add(String(0, 58 * mm, "Points by match", fontName="Helvetica-Bold", fontSize=11))
+        points_chart = Drawing(170 * mm, 78 * mm)
+        points_chart.add(String(0, 71 * mm, "Points by match", fontName="Helvetica-Bold", fontSize=11))
         lines = HorizontalLineChart()
-        lines.x, lines.y, lines.width, lines.height = 15 * mm, 12 * mm, 140 * mm, 38 * mm
+        lines.x, lines.y, lines.width, lines.height = 15 * mm, 30 * mm, 140 * mm, 34 * mm
         lines.data = [
             [int(match.points_for or 0) for match in completed],
             [int(match.points_against or 0) for match in completed],
@@ -301,11 +302,25 @@ def render_team_summary_pdf(report: TeamSummaryReport) -> bytes:
         lines.lines[0].strokeColor = colors.HexColor("#4472c4")
         lines.lines[1].strokeColor = colors.HexColor("#c55a11")
         points_chart.add(lines)
-        points_chart.add(String(15 * mm, 5 * mm, "Blue: scored   Orange: conceded   X-axis: match sequence", fontSize=8))
+        points_chart.add(String(
+            85 * mm, 20 * mm, "Match sequence", fontSize=8, textAnchor="middle"
+        ))
+        legend = Legend()
+        legend.x, legend.y = 48 * mm, 9 * mm
+        legend.boxAnchor = "w"
+        legend.dx = 5 * mm
+        legend.dy = 2.5 * mm
+        legend.deltax = 42 * mm
+        legend.fontName = "Helvetica"
+        legend.fontSize = 8
+        legend.colorNamePairs = [
+            (colors.HexColor("#4472c4"), "Points scored"),
+            (colors.HexColor("#c55a11"), "Points conceded"),
+        ]
+        points_chart.add(legend)
         story.extend([points_chart, Spacer(1, 4 * mm)])
     section("Points by match", [["Date", "Opponent", "For", "Against"], *[[match.match_date, match.opponent, match.points_for, match.points_against] for match in completed]])
     section("Match results", [["Round", "Date", "Opponent", "H/A", "Venue", "PF", "PA", "Score", "Result"], *[[match.round, match.match_date, match.opponent, match.location[0], match.venue, match.points_for if match.points_for is not None else "—", match.points_against if match.points_against is not None else "—", match.score, match.result] for match in report.matches]])
-    story.append(Paragraph("Home and away classifications follow the stored team designation; neutral venues are not identified by the current data model.", styles["Italic"]))
 
     def add_page_number(canvas: Any, doc: Any) -> None:
         """Draw the current page number in the footer.

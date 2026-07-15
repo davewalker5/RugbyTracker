@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from html import escape
 from typing import Any, Callable
 
 import pandas as pd
@@ -558,15 +559,53 @@ def matches_page(service: RugbyService, connection: Any) -> None:
             st.error(str(error))
 
 
-def _metric_row(values: list[tuple[str, str | int | float]]) -> None:
-    """Render a responsive row of report metrics.
+def _metric_cards(values: list[tuple[str, str | int | float]]) -> None:
+    """Render notebook-style metrics as rounded, responsive cards.
 
     :param values: Ordered label and display-value pairs.
     :return: None.
     """
-    # Give every measure equal visual weight within its section.
-    for column, (label, value) in zip(st.columns(len(values)), values, strict=True):
-        column.metric(label, value)
+    # Escape calculated and database-backed text before placing it in HTML.
+    cards = "".join(
+        "<div class='team-summary-card'>"
+        f"<div class='team-summary-card-label'>{escape(str(label))}</div>"
+        f"<div class='team-summary-card-value'>{escape(str(value))}</div>"
+        "</div>"
+        for label, value in values
+    )
+    st.markdown(
+        """
+        <style>
+        .team-summary-card-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin: 0.25rem 0 1rem;
+        }
+        .team-summary-card {
+            flex: 1 1 120px;
+            min-width: 120px;
+            padding: 12px 16px;
+            border: 1px solid rgba(128, 128, 128, 0.35);
+            border-radius: 8px;
+            background: rgba(128, 128, 128, 0.035);
+        }
+        .team-summary-card-label {
+            color: rgba(128, 128, 128, 0.95);
+            font-size: 0.82rem;
+            line-height: 1.25;
+        }
+        .team-summary-card-value {
+            margin-top: 0.2rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+        </style>
+        """
+        f"<div class='team-summary-card-row'>{cards}</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def _render_team_summary(report: TeamSummaryReport) -> None:
@@ -592,13 +631,13 @@ def _render_team_summary(report: TeamSummaryReport) -> None:
     )
 
     st.subheader("Season record")
-    _metric_row([
+    _metric_cards([
         ("Played", report.played), ("Won", report.won), ("Drawn", report.drawn),
         ("Lost", report.lost), ("Win percentage", f"{report.win_percentage:.1f}%"),
     ])
     if report.league:
         st.subheader("League performance")
-        _metric_row([
+        _metric_cards([
             ("Position", report.league["position"]),
             ("Competition points", report.league["competition_points"]),
             ("Points difference", report.league["points_difference"]),
@@ -608,7 +647,7 @@ def _render_team_summary(report: TeamSummaryReport) -> None:
         st.info("League standings do not apply or are not configured for this competition.")
 
     st.subheader("Scoring summary")
-    _metric_row([
+    _metric_cards([
         ("Points scored", report.points_for),
         ("Points conceded", report.points_against),
         ("Points difference", report.points_for - report.points_against),
@@ -619,7 +658,7 @@ def _render_team_summary(report: TeamSummaryReport) -> None:
     if report.tries_for is None or report.tries_against is None:
         st.info("Try totals are unavailable because one or more completed matches lack try data.")
     else:
-        _metric_row([
+        _metric_cards([
             ("Tries scored", report.tries_for),
             ("Tries conceded", report.tries_against),
             ("Average scored", f"{report.tries_for / report.played:.1f}" if report.played else "0.0"),
@@ -633,10 +672,6 @@ def _render_team_summary(report: TeamSummaryReport) -> None:
          "PA": record["points_against"], "PD": record["points_difference"]}
         for label, record in (("Home", report.home_record), ("Away", report.away_record))
     ]), hide_index=True, width="stretch")
-    st.caption(
-        "Home and away use the stored team designation. The current data model does not "
-        "identify neutral venues."
-    )
 
     st.subheader("Biggest results")
     notable = [
