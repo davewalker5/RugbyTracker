@@ -112,11 +112,22 @@ class RugbyService:
         :param entity_id: Existing country identifier, or ``None`` to create one.
         :param values: Country fields including the mandatory unique name.
         :return: The saved country's identifier.
+        :raises ValidationError: If another country already uses the name.
         """
+        name = required_text(values.get("name"), "Country name")
+        duplicate = self.repo.connection.execute(
+            """
+            SELECT id FROM countries
+            WHERE name = ? COLLATE NOCASE AND id <> COALESCE(?, -1)
+            """,
+            (name, entity_id),
+        ).fetchone()
+        if duplicate:
+            raise ValidationError("A country with this name already exists.")
         return self._save(
             self.repo.countries,
             entity_id,
-            {"name": required_text(values.get("name"), "Country name")},
+            {"name": name},
         )
 
     def list_venues(self) -> list[dict[str, Any]]:
@@ -294,6 +305,7 @@ class RugbyService:
         :raises ValidationError: If another record references the entity.
         """
         repositories = {
+            "country": self.repo.countries,
             "venue": self.repo.venues,
             "team": self.repo.teams,
             "competition": self.repo.competitions,

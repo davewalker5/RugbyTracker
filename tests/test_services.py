@@ -109,12 +109,29 @@ def test_match_validation_reports_incomplete_scores_and_same_team(service, core_
 def test_referenced_record_cannot_be_deleted(service, core_records):
     with pytest.raises(ValidationError, match="in use"):
         service.delete("venue", core_records["venue"])
+    with pytest.raises(ValidationError, match="in use"):
+        service.delete("country", core_records["england"])
 
 
 def test_unreferenced_record_can_be_deleted(service):
     referee_id = service.save_referee(name="Temporary Official")
     service.delete("referee", referee_id)
     assert service.list_referees() == []
+
+    country_id = service.save_country(name="Temporary Country")
+    service.delete("country", country_id)
+    assert service.list_countries() == []
+
+
+def test_duplicate_country_name_is_rejected(service):
+    """Reject case-insensitive duplicate country names with a clear error.
+
+    :param service: Rugby service backed by the test database.
+    :return: None.
+    """
+    service.save_country(name="England")
+    with pytest.raises(ValidationError, match="already exists"):
+        service.save_country(name="ENGLAND")
 
 
 @pytest.mark.parametrize("round_name", ("1", "Quarter-Final", "Semi-Final", "Final"))

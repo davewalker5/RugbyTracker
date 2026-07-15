@@ -390,6 +390,30 @@ def referees_page(service: RugbyService, connection: Any) -> None:
                  lambda entity_id: service.delete("referee", entity_id), {"name": "Name"}, connection)
 
 
+def countries_page(service: RugbyService, connection: Any) -> None:
+    """Render the country CRUD page.
+
+    :param service: Business service used for country operations.
+    :param connection: Active database connection for commits.
+    :return: None.
+    """
+    records = service.list_countries()
+
+    def fields(row: dict[str, Any] | None) -> dict[str, Any]:
+        """Render the country name field and collect its value.
+
+        :param row: Existing country row, or ``None`` for a new country.
+        :return: Values entered in the country form.
+        """
+        return {"name": st.text_input("Name *", value=row["name"] if row else "")}
+
+    _entity_page(
+        "Countries", "country", records, fields, service.save_country,
+        lambda entity_id: service.delete("country", entity_id), {"name": "Name"},
+        connection,
+    )
+
+
 def matches_page(service: RugbyService, connection: Any) -> None:
     """Render the match CRUD page for fixtures and results.
 
@@ -740,6 +764,7 @@ def main() -> None:
         "Navigate",
         (
             "League Table", "Matches", "Competitions", "Teams", "Venues", "Referees",
+            "Countries",
             "CSV Import", "CSV Export",
         ),
         horizontal=True,
@@ -758,6 +783,7 @@ def main() -> None:
             "Teams": lambda: teams_page(service, connection),
             "Venues": lambda: venues_page(service, connection),
             "Referees": lambda: referees_page(service, connection),
+            "Countries": lambda: countries_page(service, connection),
         }
         pages[page]()
     finally:

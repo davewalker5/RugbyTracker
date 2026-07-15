@@ -79,7 +79,7 @@ def test_all_pages_render_against_empty_database(monkeypatch, tmp_path):
     assert "Competition Summary" not in app.radio[0].options
     for page in (
         "League Table", "Matches", "CSV Import", "CSV Export",
-        "Competitions", "Teams", "Venues", "Referees",
+        "Competitions", "Teams", "Venues", "Referees", "Countries",
     ):
         app.radio[0].set_value(page).run()
         assert not app.exception, page
@@ -279,3 +279,10 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     app.radio[0].set_value("Referees").run()
     assert not app.exception
     assert not app.selectbox
+
+    app.radio[0].set_value("Countries").run()
+    assert not app.exception
+    assert not app.selectbox
+    assert set(app.dataframe[0].value["Name"]) == {
+        "Bath", "England", "Leicester Tigers",
+    }

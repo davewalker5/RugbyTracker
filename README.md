@@ -22,7 +22,7 @@ Built using Python, Streamlit and SQLite, the application follows the same desig
 
 Maintain reference data for:
 
-- Countries through CSV import and export
+- Countries through CSV import, export, and a maintenance tab
 - Venues
 - Teams
 - Competitions
