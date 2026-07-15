@@ -1,16 +1,16 @@
 competition,season,round,venue,referee,date,kickoff_time,home_team,home_country,away_team,away_country,home_tries,away_tries,home_score,away_score
-M6N,2026,1,Stade de France,Karl Dickson,2026-02-05,20:10,France,France,Ireland,Ireland,5,2,36,14
-M6N,2026,1,Stadio Olimpico,Ben O'Keeffe,2026-02-07,14:10,Italy,Italy,Scotland,Scotland,2,0,18,15
+M6N,2026,1,Stade de France,Karl Dickson,2026-02-05,20:10,Les Bleus,France,Ireland,Ireland,5,2,36,14
+M6N,2026,1,Stadio Olimpico,Ben O'Keeffe,2026-02-07,14:10,Azzurri,Italy,Scotland,Scotland,2,0,18,15
 M6N,2026,1,Allianz Stadium Twickenham,Pierre Brousset,2026-02-07,16:40,England,England,Wales,Wales,7,1,48,7
-M6N,2026,2,Aviva Stadium,Hollie Davidson,2026-02-14,14:10,Ireland,Ireland,Italy,Italy,2,1,20,13
+M6N,2026,2,Aviva Stadium,Hollie Davidson,2026-02-14,14:10,Ireland,Ireland,Azzurri,Italy,2,1,20,13
 M6N,2026,2,Murrayfield,Matthew Carley,2026-02-14,16:40,Scotland,Scotland,England,England,4,2,31,20
-M6N,2026,2,Principality Stadium,Andrea Piardi,2026-02-15,15:10,Wales,Wales,France,France,2,8,12,54
+M6N,2026,2,Principality Stadium,Andrea Piardi,2026-02-15,15:10,Wales,Wales,Les Bleus,France,2,8,12,54
 M6N,2026,3,Allianz Stadium Twickenham,Angus Gardner,2026-02-21,14:10,England,England,Ireland,Ireland,3,6,21,42
 M6N,2026,3,Principality Stadium,Nika Amashukeli,2026-02-21,16:40,Wales,Wales,Scotland,Scotland,2,4,23,26
-M6N,2026,3,Stade Pierre-Mauroy,Luc Ramos,2026-02-22,15:10,France,France,Italy,Italy,5,1,33,8
+M6N,2026,3,Stade Pierre-Mauroy,Luc Ramos,2026-02-22,15:10,Les Bleus,France,Azzurri,Italy,5,1,33,8
 M6N,2026,4,Aviva Stadium,James Doleman,2026-03-06,20:10,Ireland,Ireland,Wales,Wales,3,2,27,17
-M6N,2026,4,Murrayfield,Christophe Ridley,2026-03-07,14:10,Scotland,Scotland,France,France,7,6,50,40
-M6N,2026,4,Stadio Olimpico,Luc Ramos,2026-03-07,16:40,Italy,Italy,England,England,2,2,23,18
+M6N,2026,4,Murrayfield,Christophe Ridley,2026-03-07,14:10,Scotland,Scotland,Les Bleus,France,7,6,50,40
+M6N,2026,4,Stadio Olimpico,Luc Ramos,2026-03-07,16:40,Azzurri,Italy,England,England,2,2,23,18
 M6N,2026,5,Aviva Stadium,Luke Pearce,2026-03-14,14:10,Ireland,Ireland,Scotland,Scotland,6,3,43,21
-M6N,2026,5,Principality Stadium,Christophe Ridley,2026-03-14,16:40,Wales,Wales,Italy,Italy,4,2,31,17
-M6N,2026,5,Stade de France,Nika Amashukeli,2026-03-14,20:10,France,France,England,England,6,7,48,46
+M6N,2026,5,Principality Stadium,Christophe Ridley,2026-03-14,16:40,Wales,Wales,Azzurri,Italy,4,2,31,17
+M6N,2026,5,Stade de France,Nika Amashukeli,2026-03-14,20:10,Les Bleus,France,England,England,6,7,48,46

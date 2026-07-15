@@ -1,16 +1,16 @@
 competition,season,round,venue,referee,date,kickoff_time,home_team,home_country,away_team,away_country,home_tries,away_tries,home_score,away_score
-W6N,2026,1,Stade des Alpes,Aimee Barrett-Theron,2026-04-11,12:25,France,France,Italy,Italy,6,1,40,7
-W6N,2026,1,Allianz Stadium,Clara Munarini,2026-04-11,14:25,England,England,Ireland,Ireland,5,2,33,12
-W6N,2026,1,Principality Stadium,Ella Goldsmith,2026-04-11,16:40,Wales,Wales,Scotland,Scotland,3,4,19,24
-W6N,2026,2,Murrayfield,Zoe Naude,2026-04-18,13:30,Scotland,Scotland,England,England,1,14,7,84
-W6N,2026,2,Cardiff Arms Park,Robbie Jenkinson,2026-04-18,15:35,Wales,Wales,France,France,1,6,7,38
-W6N,2026,2,Dexcom Stadium,Ella Goldsmith,2026-04-18,17:40,Ireland,Ireland,Italy,Italy,9,4,57,20
-W6N,2026,3,Ashton Gate,Ella Goldsmith,2026-04-25,14:15,England,England,Wales,Wales,10,4,62,24
-W6N,2026,3,Stadio Sergio Lanfranchi,Robbie Jenkinson,2026-04-25,16:30,Italy,Italy,Scotland,Scotland,6,2,41,14
-W6N,2026,3,Stade Marcel-Michelin,Clara Munarini,2026-04-25,20:10,France,France,Ireland,Ireland,4,1,26,7
-W6N,2026,4,Stadio Sergio Lanfranchi,Jess Ling,2026-05-09,14:00,Italy,Italy,England,England,5,9,33,61
-W6N,2026,4,Hive Stadium,Aimee Barrett-Theron,2026-05-09,16:15,Scotland,Scotland,France,France,4,11,28,69
-W6N,2026,4,Affidea Stadium,Aurelie Groizeleau,2026-05-09,18:30,Ireland,Ireland,Wales,Wales,5,2,33,12
-W6N,2026,5,Cardiff Arms Park,Maggie Cogger-Orr,2026-05-17,12:15,Wales,Wales,Italy,Italy,4,7,24,43
-W6N,2026,5,Aviva Stadium,Jess Ling,2026-05-17,14:30,Ireland,Ireland,Scotland,Scotland,8,1,54,5
-W6N,2026,5,Stade Atlantique Bordeaux Metropole,Clara Munarini,2026-05-17,16:45,France,France,England,England,4,6,28,43
+W6N,2026,1,Stade des Alpes,Aimee Barrett-Theron,2026-04-11,12:25,Les Bleues,France,Le Azzurre,Italy,6,1,40,7
+W6N,2026,1,Allianz Stadium Twickenham,Clara Munarini,2026-04-11,14:25,Red Roses,England,Girls in Green,Ireland,5,2,33,12
+W6N,2026,1,Principality Stadium,Ella Goldsmith,2026-04-11,16:40,Wales Women,Wales,Scotland Women,Scotland,3,4,19,24
+W6N,2026,2,Murrayfield,Zoe Naude,2026-04-18,13:30,Scotland Women,Scotland,Red Roses,England,1,14,7,84
+W6N,2026,2,Cardiff Arms Park,Robbie Jenkinson,2026-04-18,15:35,Wales Women,Wales,Les Bleues,France,1,6,7,38
+W6N,2026,2,Dexcom Stadium,Ella Goldsmith,2026-04-18,17:40,Girls in Green,Ireland,Le Azzurre,Italy,9,4,57,20
+W6N,2026,3,Ashton Gate,Ella Goldsmith,2026-04-25,14:15,Red Roses,England,Wales Women,Wales,10,4,62,24
+W6N,2026,3,Stadio Sergio Lanfranchi,Robbie Jenkinson,2026-04-25,16:30,Le Azzurre,Italy,Scotland Women,Scotland,6,2,41,14
+W6N,2026,3,Stade Marcel-Michelin,Clara Munarini,2026-04-25,20:10,Les Bleues,France,Girls in Green,Ireland,4,1,26,7
+W6N,2026,4,Stadio Sergio Lanfranchi,Jess Ling,2026-05-09,14:00,Le Azzurre,Italy,Red Roses,England,5,9,33,61
+W6N,2026,4,Hive Stadium,Aimee Barrett-Theron,2026-05-09,16:15,Scotland Women,Scotland,Les Bleues,France,4,11,28,69
+W6N,2026,4,Affidea Stadium,Aurelie Groizeleau,2026-05-09,18:30,Girls in Green,Ireland,Wales Women,Wales,5,2,33,12
+W6N,2026,5,Cardiff Arms Park,Maggie Cogger-Orr,2026-05-17,12:15,Wales Women,Wales,Le Azzurre,Italy,4,7,24,43
+W6N,2026,5,Aviva Stadium,Jess Ling,2026-05-17,14:30,Girls in Green,Ireland,Scotland Women,Scotland,8,1,54,5
+W6N,2026,5,Stade Atlantique Bordeaux Metropole,Clara Munarini,2026-05-17,16:45,Les Bleues,France,Red Roses,England,4,6,28,43
