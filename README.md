@@ -65,6 +65,7 @@ The tracker calculates:
 - League Points
 
 League tables are calculated dynamically rather than stored in the database.
+Each table identifies the team and its country before showing the calculated statistics.
 
 For the Premiership Rugby and Premiership Women's Rugby rulesets, matches marked _Quarter-Final_, _Semi-Final_ or _Final_ are excluded from the league table. Teams are ranked by league points and then points difference, both descending.
 

@@ -191,6 +191,7 @@ class Standing:
 
     team_id: int
     team: str
+    country: str = ""
     played: int = 0
     won: int = 0
     drawn: int = 0
@@ -229,6 +230,7 @@ class Standing:
         return {
             "Pos": position,
             "Team": self.team,
+            "Country": self.country,
             "P": self.played,
             "W": self.won,
             "D": self.drawn,
@@ -247,7 +249,7 @@ class Standing:
 
 
 TABLE_COLUMNS = (
-    "Pos", "Team", "P", "W", "D", "L", "PF", "PA", "PD", "TF", "TA",
+    "Pos", "Team", "Country", "P", "W", "D", "L", "PF", "PA", "PD", "TF", "TA",
     "TBP", "LBP", "GSBP", "BP", "Pts",
 )
 
@@ -370,11 +372,17 @@ def _aggregate(matches: list[dict[str, Any]], ruleset: Ruleset) -> dict[int, Sta
     for match in _included_matches(matches, ruleset):
         home = standings.setdefault(
             int(match["home_team_id"]),
-            Standing(int(match["home_team_id"]), str(match["home_team_name"])),
+            Standing(
+                int(match["home_team_id"]), str(match["home_team_name"]),
+                str(match.get("home_team_country") or ""),
+            ),
         )
         away = standings.setdefault(
             int(match["away_team_id"]),
-            Standing(int(match["away_team_id"]), str(match["away_team_name"])),
+            Standing(
+                int(match["away_team_id"]), str(match["away_team_name"]),
+                str(match.get("away_team_country") or ""),
+            ),
         )
         if not _is_completed(match):
             continue

@@ -26,10 +26,10 @@ def test_match_result_styles_colour_team_cells() -> None:
     :return: None.
     """
     table = pd.DataFrame([
-        {"Home": "Home winner", "Away": "Away loser"},
-        {"Home": "Home loser", "Away": "Away winner"},
-        {"Home": "Drawn home", "Away": "Drawn away"},
-        {"Home": "Future home", "Away": "Future away"},
+        {"Home": "Home winner", "Home Country": "A", "Away": "Away loser", "Away Country": "B"},
+        {"Home": "Home loser", "Home Country": "A", "Away": "Away winner", "Away Country": "B"},
+        {"Home": "Drawn home", "Home Country": "A", "Away": "Drawn away", "Away Country": "B"},
+        {"Home": "Future home", "Home Country": "A", "Away": "Future away", "Away Country": "B"},
     ])
     matches = [
         {"home_score": 24, "away_score": 17},
@@ -41,11 +41,17 @@ def test_match_result_styles_colour_team_cells() -> None:
     context = _style_match_results(table, matches)._compute().ctx
 
     assert context[(0, 0)] == [("background-color", WIN_BACKGROUND)]
-    assert context[(0, 1)] == [("background-color", LOSS_BACKGROUND)]
+    assert context[(0, 1)] == [("background-color", WIN_BACKGROUND)]
+    assert context[(0, 2)] == [("background-color", LOSS_BACKGROUND)]
+    assert context[(0, 3)] == [("background-color", LOSS_BACKGROUND)]
     assert context[(1, 0)] == [("background-color", LOSS_BACKGROUND)]
-    assert context[(1, 1)] == [("background-color", WIN_BACKGROUND)]
+    assert context[(1, 1)] == [("background-color", LOSS_BACKGROUND)]
+    assert context[(1, 2)] == [("background-color", WIN_BACKGROUND)]
+    assert context[(1, 3)] == [("background-color", WIN_BACKGROUND)]
     assert context[(2, 0)] == [("background-color", DRAW_BACKGROUND)]
     assert context[(2, 1)] == [("background-color", DRAW_BACKGROUND)]
+    assert context[(2, 2)] == [("background-color", DRAW_BACKGROUND)]
+    assert context[(2, 3)] == [("background-color", DRAW_BACKGROUND)]
     assert (3, 0) not in context
     assert (3, 1) not in context
 
@@ -205,8 +211,13 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     assert app.selectbox[0].value is None
     app.selectbox[0].set_value(competition).run()
     assert app.dataframe[0].value.columns.tolist() == [
-        "Date", "Competition", "Round", "Venue", "Home", "Away", "Score", "Tries"
+        "Date", "Competition", "Round", "Venue", "Home", "Home Country",
+        "Away", "Away Country", "Score", "Tries",
     ]
+    assert app.dataframe[0].value["Home"].tolist() == ["Bath"]
+    assert app.dataframe[0].value["Home Country"].tolist() == ["Bath"]
+    assert app.dataframe[0].value["Away"].tolist() == ["Leicester Tigers"]
+    assert app.dataframe[0].value["Away Country"].tolist() == ["Leicester Tigers"]
     assert app.dataframe[0].value["Venue"].tolist() == ["The Rec"]
     assert app.dataframe[0].value["Score"].tolist() == ["31–17"]
     assert app.dataframe[0].value["Tries"].tolist() == ["4–2"]

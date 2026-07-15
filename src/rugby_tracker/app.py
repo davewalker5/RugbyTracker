@@ -40,11 +40,15 @@ def _filter_by_gender(
 def _style_match_results(table: pd.DataFrame, matches: list[dict[str, Any]]) -> Styler:
     """Colour the team cells in completed fixtures according to the result.
 
-    :param table: Display-ready matches table with ``Home`` and ``Away`` columns.
+    :param table: Display-ready table with home/away team and country columns.
     :param matches: Match records corresponding positionally to the table rows.
     :return: Styled table with winner, loser, and draw backgrounds applied.
     """
     styled = table.style
+    side_columns = {
+        "Home": ["Home", "Home Country"],
+        "Away": ["Away", "Away Country"],
+    }
     for index, match in enumerate(matches):
         home_score = match["home_score"]
         away_score = match["away_score"]
@@ -52,18 +56,18 @@ def _style_match_results(table: pd.DataFrame, matches: list[dict[str, Any]]) -> 
             continue
         if home_score == away_score:
             styled.set_properties(
-                subset=pd.IndexSlice[[index], ["Home", "Away"]],
+                subset=pd.IndexSlice[[index], side_columns["Home"] + side_columns["Away"]],
                 **{"background-color": DRAW_BACKGROUND},
             )
             continue
         winner = "Home" if home_score > away_score else "Away"
         loser = "Away" if winner == "Home" else "Home"
         styled.set_properties(
-            subset=pd.IndexSlice[[index], [winner]],
+            subset=pd.IndexSlice[[index], side_columns[winner]],
             **{"background-color": WIN_BACKGROUND},
         )
         styled.set_properties(
-            subset=pd.IndexSlice[[index], [loser]],
+            subset=pd.IndexSlice[[index], side_columns[loser]],
             **{"background-color": LOSS_BACKGROUND},
         )
     return styled
@@ -447,8 +451,10 @@ def matches_page(service: RugbyService, connection: Any) -> None:
         table = pd.DataFrame([{
             "Date": row["match_date"], "Competition": f"{row['competition_name']} {row['competition_season']}",
             "Round": row["round"] or "—", "Venue": row["venue_name"] or "TBC",
-            "Home": f"{row['home_team_name']} — {row['home_team_country']}",
-            "Away": f"{row['away_team_name']} — {row['away_team_country']}",
+            "Home": row["home_team_name"],
+            "Home Country": row["home_team_country"],
+            "Away": row["away_team_name"],
+            "Away Country": row["away_team_country"],
             "Score": "Fixture" if row["home_score"] is None else f"{row['home_score']}–{row['away_score']}",
             "Tries": "Fixture" if row["home_tries"] is None else f"{row['home_tries']}–{row['away_tries']}",
         } for row in matches])

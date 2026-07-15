@@ -48,13 +48,13 @@ def test_table_calculates_every_required_column_and_order():
     table = calculate_table(matches, "prem_2025_26")
 
     assert table == [
-        {"Pos": 1, "Team": "Charlie", "P": 2, "W": 1, "D": 1, "L": 0,
+        {"Pos": 1, "Team": "Charlie", "Country": "", "P": 2, "W": 1, "D": 1, "L": 0,
          "PF": 60, "PA": 30, "PD": 30, "TF": 9, "TA": 6,
          "TBP": 2, "LBP": 0, "GSBP": 0, "BP": 2, "Pts": 8},
-        {"Pos": 2, "Team": "Alpha", "P": 2, "W": 1, "D": 0, "L": 1,
+        {"Pos": 2, "Team": "Alpha", "Country": "", "P": 2, "W": 1, "D": 0, "L": 1,
          "PF": 40, "PA": 65, "PD": -25, "TF": 6, "TA": 8,
          "TBP": 1, "LBP": 0, "GSBP": 0, "BP": 1, "Pts": 5},
-        {"Pos": 3, "Team": "Bravo", "P": 2, "W": 0, "D": 1, "L": 1,
+        {"Pos": 3, "Team": "Bravo", "Country": "", "P": 2, "W": 0, "D": 1, "L": 1,
          "PF": 45, "PA": 50, "PD": -5, "TF": 7, "TA": 8,
          "TBP": 1, "LBP": 1, "GSBP": 0, "BP": 2, "Pts": 4},
     ]
@@ -188,7 +188,7 @@ def test_table_csv_has_the_required_columns_and_rows():
     )
     rows = list(csv.DictReader(io.StringIO(table_to_csv(table))))
     assert list(rows[0]) == [
-        "Pos", "Team", "P", "W", "D", "L", "PF", "PA", "PD", "TF", "TA",
+        "Pos", "Team", "Country", "P", "W", "D", "L", "PF", "PA", "PD", "TF", "TA",
         "TBP", "LBP", "GSBP", "BP", "Pts",
     ]
     assert rows[0]["Team"] == "Alpha"
@@ -219,6 +219,7 @@ def test_service_requires_ruleset_then_calculates_and_exports(service, core_reco
     )
     result = service.league_table(core_records["competition"])
     assert result["table"][0]["Team"] == "Bath"
+    assert result["table"][0]["Country"] == "Bath"
     assert result["table"][0]["Pts"] == 5
     assert "Bath" in service.league_table_csv(core_records["competition"])
 
