@@ -36,12 +36,15 @@ def test_csv_exports_use_import_schemas_and_related_names(
     exported = {entity_type: exporter.export_csv(entity_type) for entity_type in EXPORT_TYPES}
     assert list(csv.DictReader(io.StringIO(exported["Venues"])))[0]["name"] == "The Rec"
     assert list(csv.DictReader(io.StringIO(exported["Teams"])))[0]["home_venue"] == "The Rec"
+    assert list(csv.DictReader(io.StringIO(exported["Teams"])))[0]["country"] == "Bath"
     assert list(csv.DictReader(io.StringIO(exported["Competitions"])))[0]["name"] == "Premiership Rugby"
     assert list(csv.DictReader(io.StringIO(exported["Referees"])))[0]["name"] == "Luke Pearce"
     match_row = list(csv.DictReader(io.StringIO(exported["Matches"])))[0]
     assert match_row["competition"] == "Premiership Rugby"
     assert match_row["venue"] == "The Rec"
     assert match_row["home_team"] == "Bath"
+    assert match_row["home_country"] == "Bath"
+    assert match_row["away_country"] == "Leicester Tigers"
     assert match_row["home_score"] == "31"
 
 

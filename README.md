@@ -97,6 +97,8 @@ Import data from CSV files for:
 
 Match imports automatically resolve related entities using case-insensitive name matching while validating all foreign-key relationships.
 
+Teams include a mandatory country and are uniquely identified by the combination of team name and country. Match CSV files include _home_country_ and _away_country_ alongside the corresponding team names so imports resolve the intended teams unambiguously.
+
 Imports are additive: when a CSV row identifies a venue, team, competition, referee or match that already exists, the row is skipped and the stored record is left unchanged. To change an existing record, edit it in the application rather than re-importing it.
 
 The same data can be exported from the command line:

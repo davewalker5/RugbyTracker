@@ -23,7 +23,18 @@ def test_crud_for_reference_entities(service, core_records):
         (lambda service: service.save_venue(name="   "), "Venue name is required."),
         (lambda service: service.save_referee(name=None), "Referee name is required."),
         (lambda service: service.save_competition(name="League", season="", gender="Men"), "Season is required."),
-        (lambda service: service.save_team(name="Club", gender="Mixed", home_venue_id=1), "Category must be"),
+        (
+            lambda service: service.save_team(
+                name="Club", country="England", gender="Mixed", home_venue_id=1
+            ),
+            "Category must be",
+        ),
+        (
+            lambda service: service.save_team(
+                name="Club", country="", gender="Men", home_venue_id=1
+            ),
+            "Country is required.",
+        ),
     ],
 )
 def test_mandatory_fields_have_clear_errors(service, action, message):
@@ -51,6 +62,29 @@ def test_match_can_be_a_fixture_then_updated_to_a_result(service, core_records):
     result = service.list_matches(core_records["competition"])[0]
     assert result["home_score"] == 31
     assert result["away_score"] == 17
+
+
+def test_team_identity_is_name_plus_country(service, core_records):
+    """Allow a shared name across countries but reject a duplicate identity.
+
+    :param service: Rugby service backed by the test database.
+    :param core_records: Identifiers for existing reference records.
+    :return: None.
+    """
+    service.save_team(
+        name="United", country="England", gender="Women",
+        home_venue_id=core_records["venue"],
+    )
+    service.save_team(
+        name="United", country="Scotland", gender="Men",
+        home_venue_id=core_records["venue"],
+    )
+
+    with pytest.raises(ValidationError, match="name and country already exists"):
+        service.save_team(
+            name="united", country="ENGLAND", gender="Men",
+            home_venue_id=core_records["venue"],
+        )
 
 
 def test_match_validation_reports_incomplete_scores_and_same_team(service, core_records):

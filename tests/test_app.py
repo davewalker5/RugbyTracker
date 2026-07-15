@@ -127,8 +127,13 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     connection = connect(database)
     service = RugbyService(connection)
     venue = service.save_venue(name="The Rec")
-    home = service.save_team(name="Bath", gender="Men", home_venue_id=venue)
-    away = service.save_team(name="Leicester Tigers", gender="Men", home_venue_id=venue)
+    home = service.save_team(
+        name="Bath", country="Bath", gender="Men", home_venue_id=venue
+    )
+    away = service.save_team(
+        name="Leicester Tigers", country="Leicester Tigers", gender="Men",
+        home_venue_id=venue,
+    )
     competition = service.save_competition(
         name="PREM", season="2025/26", gender="Men", ruleset="prem_2025_26"
     )

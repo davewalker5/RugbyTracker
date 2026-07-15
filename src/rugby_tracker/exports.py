@@ -14,12 +14,13 @@ EXPORT_TYPES = ("Venues", "Teams", "Competitions", "Referees", "Matches")
 
 EXPORT_HEADERS = {
     "Venues": ("name", "town_city", "country"),
-    "Teams": ("name", "gender", "home_venue"),
+    "Teams": ("name", "country", "gender", "home_venue"),
     "Competitions": ("name", "season", "gender", "ruleset"),
     "Referees": ("name",),
     "Matches": (
         "competition", "season", "round", "venue", "referee", "date", "kickoff_time",
-        "home_team", "away_team", "home_tries", "away_tries", "home_score", "away_score",
+        "home_team", "home_country", "away_team", "away_country",
+        "home_tries", "away_tries", "home_score", "away_score",
     ),
 }
 
@@ -82,6 +83,7 @@ class CsvExportService:
         return [
             {
                 "name": row["name"],
+                "country": row["country"],
                 "gender": row["gender"],
                 "home_venue": venue_names.get(row["home_venue_id"], ""),
             }
@@ -128,7 +130,9 @@ class CsvExportService:
                 "date": row["match_date"],
                 "kickoff_time": row["kickoff_time"] or "",
                 "home_team": row["home_team_name"],
+                "home_country": row["home_team_country"],
                 "away_team": row["away_team_name"],
+                "away_country": row["away_team_country"],
                 "home_tries": "" if row["home_tries"] is None else row["home_tries"],
                 "away_tries": "" if row["away_tries"] is None else row["away_tries"],
                 "home_score": "" if row["home_score"] is None else row["home_score"],

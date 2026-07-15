@@ -99,7 +99,9 @@ class RugbyRepository:
         """
         self.connection = connection
         self.venues = Repository(connection, "venues", ("name", "town_city", "country"))
-        self.teams = Repository(connection, "teams", ("name", "gender", "home_venue_id"))
+        self.teams = Repository(
+            connection, "teams", ("name", "country", "gender", "home_venue_id")
+        )
         self.competitions = Repository(
             connection, "competitions", ("name", "season", "gender", "ruleset")
         )
@@ -126,7 +128,8 @@ class RugbyRepository:
             f"""
             SELECT m.*, c.name AS competition_name, c.season AS competition_season,
                    v.name AS venue_name, r.name AS referee_name,
-                   h.name AS home_team_name, a.name AS away_team_name
+                   h.name AS home_team_name, h.country AS home_team_country,
+                   a.name AS away_team_name, a.country AS away_team_country
             FROM matches m
             JOIN competitions c ON c.id = m.competition_id
             LEFT JOIN venues v ON v.id = m.venue_id

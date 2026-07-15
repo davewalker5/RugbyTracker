@@ -1,13 +1,13 @@
-name,gender,home_venue
-Australia Women,Women,Stadium Australia
-Canada Women,Women,TD Place Stadium
-England Women,Women,Twickenham Stadium
-France Women,Women,Stade Marcel-Deflandre
-Ireland Women,Women,Dexcom Stadium
-Italy Women,Women,Stadio Omero Tognon
-New Zealand Women,Women,FMG Stadium Waikato
-Scotland Women,Women,Edinburgh Rugby Stadium
-South Africa Women,Women,Athlone Stadium
-USA Women,Women,Sports Illustrated Stadium
-Wales Women,Women,Cardiff Arms Park
-Japan Women,Women,Prince Chichibu Memorial Rugby Stadium
+name,country,gender,home_venue
+Australia Women,Australia Women,Women,Stadium Australia
+Canada Women,Canada Women,Women,TD Place Stadium
+England Women,England Women,Women,Twickenham Stadium
+France Women,France Women,Women,Stade Marcel-Deflandre
+Ireland Women,Ireland Women,Women,Dexcom Stadium
+Italy Women,Italy Women,Women,Stadio Omero Tognon
+New Zealand Women,New Zealand Women,Women,FMG Stadium Waikato
+Scotland Women,Scotland Women,Women,Edinburgh Rugby Stadium
+South Africa Women,South Africa Women,Women,Athlone Stadium
+USA Women,USA Women,Women,Sports Illustrated Stadium
+Wales Women,Wales Women,Women,Cardiff Arms Park
+Japan Women,Japan Women,Women,Prince Chichibu Memorial Rugby Stadium

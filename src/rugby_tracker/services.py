@@ -131,14 +131,28 @@ class RugbyService:
         """Create or update a team after validating its fields.
 
         :param entity_id: Existing team identifier, or ``None`` to create one.
-        :param values: Team fields including name, category, and home venue.
+        :param values: Team fields including name, country, category, and home venue.
         :return: The saved team's identifier.
+        :raises ValidationError: If the name and country identify another team.
         """
         name = required_text(values.get("name"), "Team name")
+        country = required_text(values.get("country"), "Country")
         gender = valid_gender(values.get("gender"))
         venue_id = self._foreign_key(self.repo.venues, values.get("home_venue_id"), "Home venue")
+        # Team identity is deliberately independent of gender and home venue.
+        duplicate = self.repo.connection.execute(
+            """
+            SELECT id FROM teams
+            WHERE name = ? COLLATE NOCASE AND country = ? COLLATE NOCASE
+              AND id <> COALESCE(?, -1)
+            """,
+            (name, country, entity_id),
+        ).fetchone()
+        if duplicate:
+            raise ValidationError("A team with this name and country already exists.")
         data = {
             "name": name,
+            "country": country,
             "gender": gender,
             "home_venue_id": venue_id,
         }

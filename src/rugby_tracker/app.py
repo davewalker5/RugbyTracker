@@ -229,6 +229,7 @@ def venues_page(service: RugbyService, connection: Any) -> None:
         """
         return {
             "name": st.text_input("Name *", value=row["name"] if row else ""),
+            "country": st.text_input("Country *", value=row["country"] if row else ""),
             "town_city": st.text_input("Town/City", value=(row["town_city"] or "") if row else ""),
             "country": st.text_input("Country", value=(row["country"] or "") if row else ""),
         }
@@ -273,7 +274,10 @@ def teams_page(service: RugbyService, connection: Any) -> None:
     display_rows = [{**row, "home_venue": venue_names.get(row["home_venue_id"], "")} for row in records]
     _entity_page("Teams", "team", display_rows, fields, service.save_team,
                  lambda entity_id: service.delete("team", entity_id),
-                 {"name": "Name", "gender": "Category", "home_venue": "Home venue"}, connection)
+                 {
+                     "name": "Name", "country": "Country", "gender": "Category",
+                     "home_venue": "Home venue",
+                 }, connection)
 
 
 def competitions_page(service: RugbyService, connection: Any) -> None:
@@ -380,7 +384,8 @@ def matches_page(service: RugbyService, connection: Any) -> None:
         table = pd.DataFrame([{
             "Date": row["match_date"], "Competition": f"{row['competition_name']} {row['competition_season']}",
             "Round": row["round"] or "—", "Venue": row["venue_name"] or "TBC",
-            "Home": row["home_team_name"], "Away": row["away_team_name"],
+            "Home": f"{row['home_team_name']} — {row['home_team_country']}",
+            "Away": f"{row['away_team_name']} — {row['away_team_country']}",
             "Score": "Fixture" if row["home_score"] is None else f"{row['home_score']}–{row['away_score']}",
             "Tries": "Fixture" if row["home_tries"] is None else f"{row['home_tries']}–{row['away_tries']}",
         } for row in matches])
@@ -423,11 +428,19 @@ def matches_page(service: RugbyService, connection: Any) -> None:
         referee_id = _select("Referee", _options(referees), selected["referee_id"] if selected else None, optional=True)
         left, right = st.columns(2)
         with left:
-            home_team_id = _select("Home team *", _options(teams), selected["home_team_id"] if selected else None)
+            home_team_id = _select(
+                "Home team *",
+                _options(teams, lambda row: f"{row['name']} — {row['country']}"),
+                selected["home_team_id"] if selected else None,
+            )
             home_tries = st.text_input("Home tries", value=str(selected["home_tries"]) if selected and selected["home_tries"] is not None else "")
             home_score = st.text_input("Home score", value=str(selected["home_score"]) if selected and selected["home_score"] is not None else "")
         with right:
-            away_team_id = _select("Away team *", _options(teams), selected["away_team_id"] if selected else None)
+            away_team_id = _select(
+                "Away team *",
+                _options(teams, lambda row: f"{row['name']} — {row['country']}"),
+                selected["away_team_id"] if selected else None,
+            )
             away_tries = st.text_input("Away tries", value=str(selected["away_tries"]) if selected and selected["away_tries"] is not None else "")
             away_score = st.text_input("Away score", value=str(selected["away_score"]) if selected and selected["away_score"] is not None else "")
         st.caption("Leave all four try and score fields blank to save a future fixture.")

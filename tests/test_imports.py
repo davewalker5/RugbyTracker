@@ -19,7 +19,7 @@ def test_reference_imports_are_case_insensitive_and_repeatable(service, core_rec
 
     teams = importer.import_csv(
         "Teams",
-        "name,gender,home venue\nGloucester Rugby,MEN,the rec\nGloucester Rugby,Men,The Rec\n",
+        "name,country,gender,home venue\nGloucester Rugby,England,MEN,the rec\nGloucester Rugby,England,Men,The Rec\n",
     )
     assert (teams.imported, teams.skipped, teams.invalid) == (1, 1, 0)
 
@@ -33,7 +33,7 @@ def test_reference_imports_are_case_insensitive_and_repeatable(service, core_rec
     assert (referees.imported, referees.skipped, referees.invalid) == (1, 1, 0)
 
     repeated = importer.import_csv(
-        "Teams", "name,gender,home_venue\nGloucester Rugby,Men,The Rec\n"
+        "Teams", "name,country,gender,home_venue\nGloucester Rugby,England,Men,The Rec\n"
     )
     assert (repeated.imported, repeated.skipped, repeated.invalid) == (0, 1, 0)
     assert len(service.list_teams()) == 3
@@ -78,7 +78,7 @@ def test_every_import_type_ignores_existing_entities_and_leaves_them_intact(
             "Venues", "name,town_city,country\nthe rec,Changed Town,Changed Country\n"
         ),
         importer.import_csv(
-            "Teams", "name,gender,home_venue\nBATH,men,Unknown Ground\n"
+            "Teams", "name,country,gender,home_venue\nBATH,Bath,men,Unknown Ground\n"
         ),
         importer.import_csv(
             "Competitions",
@@ -87,8 +87,8 @@ def test_every_import_type_ignores_existing_entities_and_leaves_them_intact(
         importer.import_csv("Referees", "name\nluke pearce\n"),
         importer.import_csv(
             "Matches",
-            """competition,season,venue,referee,date,home_team,away_team,home_tries,away_tries,home_score,away_score
-Premiership Rugby,2025/26,,Unknown Referee,2025-09-20,Bath,Leicester Tigers,-1,,,999
+            """competition,season,venue,referee,date,home_team,home_country,away_team,away_country,home_tries,away_tries,home_score,away_score
+Premiership Rugby,2025/26,,Unknown Referee,2025-09-20,Bath,Bath,Leicester Tigers,Leicester Tigers,-1,,,999
 """,
         ),
     ]
@@ -114,9 +114,9 @@ Premiership Rugby,2025/26,,Unknown Referee,2025-09-20,Bath,Leicester Tigers,-1,,
 
 def test_match_import_resolves_names_and_supports_fixtures_and_results(service, core_records, connection):
     importer = CsvImportService(connection)
-    content = """competition,season,round,venue,referee,date,kick-off time,home team,away team,home tries,away tries,home score,away score
-premiership rugby,2025/26,Semi-Final,THE REC,luke pearce,2025-09-20,15:00,bath,LEICESTER TIGERS,4,2,31,17
-Premiership Rugby,2025/26,Final,Welford Road,,2025-09-27,,Leicester Tigers,Bath,,,,
+    content = """competition,season,round,venue,referee,date,kick-off time,home team,home country,away team,away country,home tries,away tries,home score,away score
+premiership rugby,2025/26,Semi-Final,THE REC,luke pearce,2025-09-20,15:00,bath,Bath,LEICESTER TIGERS,Leicester Tigers,4,2,31,17
+Premiership Rugby,2025/26,Final,Welford Road,,2025-09-27,,Leicester Tigers,Leicester Tigers,Bath,Bath,,,,
 """
     report = importer.import_csv("Matches", content)
     connection.commit()
@@ -133,6 +133,38 @@ Premiership Rugby,2025/26,Final,Welford Road,,2025-09-27,,Leicester Tigers,Bath,
     assert (repeated.imported, repeated.skipped) == (0, 2)
 
 
+def test_match_import_uses_country_to_disambiguate_team_names(
+    service, core_records, connection
+):
+    """Resolve teams sharing a name through their mandatory countries.
+
+    :param service: Rugby service backed by the test database.
+    :param core_records: Identifiers for existing reference records.
+    :param connection: Open test database connection.
+    :return: None.
+    """
+    england = service.save_team(
+        name="United", country="England", gender="Men",
+        home_venue_id=core_records["venue"],
+    )
+    scotland = service.save_team(
+        name="United", country="Scotland", gender="Men",
+        home_venue_id=core_records["away_venue"],
+    )
+    importer = CsvImportService(connection)
+    report = importer.import_csv(
+        "Matches",
+        """competition,season,venue,date,home_team,home_country,away_team,away_country
+Premiership Rugby,2025/26,The Rec,2026-01-01,United,England,United,Scotland
+""",
+    )
+
+    match_row = service.list_matches(core_records["competition"])[0]
+    assert (report.imported, report.invalid) == (1, 0)
+    assert match_row["home_team_id"] == england
+    assert match_row["away_team_id"] == scotland
+
+
 def test_match_import_allows_a_venue_to_be_announced_later(
     service, core_records, connection
 ):
@@ -147,8 +179,8 @@ def test_match_import_allows_a_venue_to_be_announced_later(
     importer = CsvImportService(connection)
     report = importer.import_csv(
         "Matches",
-        """competition,season,venue,date,home_team,away_team
-Premiership Rugby,2025/26,,2026-10-01,Bath,Leicester Tigers
+        """competition,season,venue,date,home_team,home_country,away_team,away_country
+Premiership Rugby,2025/26,,2026-10-01,Bath,Bath,Leicester Tigers,Leicester Tigers
 """,
     )
 
@@ -290,8 +322,8 @@ def test_same_competition_name_across_seasons_is_allowed_and_matches_correctly(
     )
     assert later_competition != core_records["competition"]
 
-    content = """competition,season,venue,date,home_team,away_team
-PREMIERSHIP RUGBY,2026/27,The Rec,2026-09-20,Bath,Leicester Tigers
+    content = """competition,season,venue,date,home_team,home_country,away_team,away_country
+PREMIERSHIP RUGBY,2026/27,The Rec,2026-09-20,Bath,Bath,Leicester Tigers,Leicester Tigers
 """
     report = importer.import_csv("Matches", content)
 
@@ -332,8 +364,8 @@ Unknown,2025/26,Men,not_a_ruleset
 
 def test_match_import_reports_every_missing_reference_and_bad_result(connection):
     importer = CsvImportService(connection)
-    content = """competition,season,venue,date,home_team,away_team,home_tries,away_tries,home_score,away_score,referee
-Unknown League,2025/26,Unknown Ground,not-a-date,Home RFC,Away RFC,-1,nope,10,,Unknown Ref
+    content = """competition,season,venue,date,home_team,home_country,away_team,away_country,home_tries,away_tries,home_score,away_score,referee
+Unknown League,2025/26,Unknown Ground,not-a-date,Home RFC,Home Country,Away RFC,Away Country,-1,nope,10,,Unknown Ref
 """
     report = importer.import_csv("Matches", content)
     messages = report.issues[0].messages
@@ -351,12 +383,12 @@ Unknown League,2025/26,Unknown Ground,not-a-date,Home RFC,Away RFC,-1,nope,10,,U
 
 def test_document_errors_prevent_import(connection):
     importer = CsvImportService(connection)
-    missing = importer.import_csv("Teams", "name,gender\nBath,Men\n")
+    missing = importer.import_csv("Teams", "name,country,gender\nBath,Bath,Men\n")
     assert missing.total_rows == 0
     assert "home_venue" in missing.issues[0].messages[0]
 
     missing_season = importer.import_csv(
-        "Matches", "competition,venue,date,home_team,away_team\nLeague,Ground,2026-01-01,A,B\n"
+        "Matches", "competition,venue,date,home_team,home_country,away_team,away_country\nLeague,Ground,2026-01-01,A,A,B,B\n"
     )
     assert missing_season.total_rows == 0
     assert "season" in missing_season.issues[0].messages[0]
@@ -370,7 +402,9 @@ def test_ambiguous_case_insensitive_reference_is_refused(service, connection):
     service.save_venue(name="The Rec")
     service.save_venue(name="the rec")
     importer = CsvImportService(connection)
-    report = importer.import_csv("Teams", "name,gender,home_venue\nBath,Men,THE REC\n")
+    report = importer.import_csv(
+        "Teams", "name,country,gender,home_venue\nBath,Bath,Men,THE REC\n"
+    )
     assert report.imported == 0
     assert "matches more than one" in report.issues[0].messages[0]
 
