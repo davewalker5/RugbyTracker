@@ -19,6 +19,22 @@ from rugby_tracker.standings import RULESETS
 WIN_BACKGROUND = "#d9ead3"
 LOSS_BACKGROUND = "#f4cccc"
 DRAW_BACKGROUND = "#fff2cc"
+MEN_AND_WOMEN = "Men and Women"
+GENDER_FILTERS = (MEN_AND_WOMEN, *GENDERS)
+
+
+def _filter_by_gender(
+    records: list[dict[str, Any]], selected_gender: str
+) -> list[dict[str, Any]]:
+    """Filter gendered records while supporting an inclusive default.
+
+    :param records: Team or competition rows containing a ``gender`` value.
+    :param selected_gender: ``All``, ``Men``, or ``Women``.
+    :return: Every record for ``All`` or records matching the selected gender.
+    """
+    if selected_gender == MEN_AND_WOMEN:
+        return records
+    return [row for row in records if row.get("gender") == selected_gender]
 
 
 def _style_match_results(table: pd.DataFrame, matches: list[dict[str, Any]]) -> Styler:
@@ -160,6 +176,7 @@ def _entity_page(
     delete: Callable[[int], None],
     columns: dict[str, str],
     connection: Any,
+    gender_filter_key: str | None = None,
 ) -> None:
     """Render a reusable list and CRUD form for a reference entity.
 
@@ -171,9 +188,19 @@ def _entity_page(
     :param delete: Callback that deletes an entity by identifier.
     :param columns: Mapping of record keys to table headings.
     :param connection: Active database connection for commits.
+    :param gender_filter_key: Optional widget key enabling the gender table filter.
     :return: None.
     """
     st.header(title)
+    if gender_filter_key is not None:
+        # Keep filtering outside the edit form so changing it immediately refreshes the table.
+        selected_gender = st.selectbox(
+            "Gender",
+            GENDER_FILTERS,
+            index=0,
+            key=gender_filter_key,
+        )
+        records = _filter_by_gender(records, selected_gender)
     selected = None
     table_key = f"{singular}_table"
     if records:
@@ -277,7 +304,7 @@ def teams_page(service: RugbyService, connection: Any) -> None:
                  {
                      "name": "Name", "country": "Country", "gender": "Category",
                      "home_venue": "Home venue",
-                 }, connection)
+                 }, connection, gender_filter_key="teams_gender_filter")
 
 
 def competitions_page(service: RugbyService, connection: Any) -> None:
@@ -327,7 +354,8 @@ def competitions_page(service: RugbyService, connection: Any) -> None:
     _entity_page("Competitions", "competition", display_rows,
                  fields, service.save_competition,
                  lambda entity_id: service.delete("competition", entity_id),
-                 {"name": "Name", "season": "Season", "gender": "Category", "ruleset_label": "Ruleset"}, connection)
+                 {"name": "Name", "season": "Season", "gender": "Category", "ruleset_label": "Ruleset"},
+                 connection, gender_filter_key="competitions_gender_filter")
 
 
 def referees_page(service: RugbyService, connection: Any) -> None:

@@ -10,6 +10,7 @@ from rugby_tracker.app import (
     LOSS_BACKGROUND,
     WIN_BACKGROUND,
     _export_validation_error,
+    _filter_by_gender,
     _style_match_results,
 )
 from rugby_tracker.database import apply_migrations, connect
@@ -47,6 +48,21 @@ def test_match_result_styles_colour_team_cells() -> None:
     assert context[(2, 1)] == [("background-color", DRAW_BACKGROUND)]
     assert (3, 0) not in context
     assert (3, 1) not in context
+
+
+def test_gender_filter_defaults_to_all_and_selects_one_category() -> None:
+    """Filter teams or competitions using the shared category choices.
+
+    :return: None.
+    """
+    records = [
+        {"name": "Men's team", "gender": "Men"},
+        {"name": "Women's team", "gender": "Women"},
+    ]
+
+    assert _filter_by_gender(records, "Men and Women") == records
+    assert [row["name"] for row in _filter_by_gender(records, "Men")] == ["Men's team"]
+    assert [row["name"] for row in _filter_by_gender(records, "Women")] == ["Women's team"]
 
 
 def test_app_starts_with_an_empty_database(monkeypatch, tmp_path):
@@ -134,11 +150,17 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
         name="Leicester Tigers", country="Leicester Tigers", gender="Men",
         home_venue_id=venue,
     )
+    service.save_team(
+        name="Bath Women", country="England", gender="Women", home_venue_id=venue
+    )
     competition = service.save_competition(
         name="PREM", season="2025/26", gender="Men", ruleset="prem_2025_26"
     )
     later_competition = service.save_competition(
         name="PREM", season="2026/27", gender="Men", ruleset="prem_2025_26"
+    )
+    service.save_competition(
+        name="W6N", season="2026", gender="Women", ruleset="w6n"
     )
     service.save_match(
         competition_id=competition,
@@ -209,7 +231,18 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     assert app.dataframe[0].value["Score"].tolist() == ["22–12"]
     assert app.dataframe[0].value["Tries"].tolist() == ["3–1"]
 
-    for page in ("Teams", "Competitions", "CSV Import", "CSV Export"):
+    for page in ("Teams", "Competitions"):
+        app.radio[0].set_value(page).run()
+        assert not app.exception, page
+        assert app.selectbox, page
+        assert app.selectbox[0].value == "Men and Women", page
+        assert all(selector.value is None for selector in app.selectbox[1:]), page
+        assert set(app.dataframe[0].value["Category"]) == {"Men", "Women"}
+        app.selectbox[0].set_value("Women").run()
+        assert set(app.dataframe[0].value["Category"]) == {"Women"}
+        app.selectbox[0].set_value("Men and Women").run()
+
+    for page in ("CSV Import", "CSV Export"):
         app.radio[0].set_value(page).run()
         assert not app.exception, page
         assert app.selectbox, page
@@ -220,7 +253,9 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     app.run()
 
     assert [field.value for field in app.text_input] == ["PREM", "2025/26"]
-    assert [selector.value for selector in app.selectbox] == ["Men", "prem_2025_26"]
+    assert [selector.value for selector in app.selectbox] == [
+        "Men and Women", "Men", "prem_2025_26"
+    ]
 
     for page in ("Venues", "Referees"):
         app.radio[0].set_value(page).run()
