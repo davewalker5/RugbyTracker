@@ -171,6 +171,17 @@ RULESETS = {
         _INTERNATIONAL_TABLE,
         AwardRules(champion=True),
     ),
+    "nations_2026": Ruleset(
+        "nations_2026",
+        "Nations Championship Series (2026)",
+        # Each geographic series contains three cross-hemisphere fixtures per team.
+        CompetitionFormat(team_count=12, matches_per_team=3),
+        _INTERNATIONAL_SCORING,
+        LeagueTableRules(
+            ("competition_points", "wins", "points_difference", "tries_for")
+        ),
+        AwardRules(champion=True),
+    ),
 }
 
 
@@ -410,6 +421,7 @@ def _ranking_key(standing: Standing, ruleset: Ruleset) -> tuple[int, ...]:
     """
     values = {
         "competition_points": standing.league_points,
+        "wins": standing.won,
         "points_difference": standing.points_difference,
         "tries_for": standing.tries_for,
     }

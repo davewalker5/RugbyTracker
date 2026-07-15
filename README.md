@@ -71,6 +71,8 @@ For the Men's and Women's Six Nations rulesets, the tracker validates the six-te
 
 For the 2026 WXV Global Series and Global Series Challenger rulesets, the tracker supports the published selected-fixture formats and ranks teams by competition points, points difference and tries scored.
 
+For the 2026 Nations Championship Southern and Northern Series, the tracker supports the published cross-hemisphere fixtures and shared match-points rules. Teams are ranked by competition points, wins, points difference and then tries scored.
+
 ### Competition Rules
 
 Support for competition-specific points systems, including:
@@ -81,6 +83,7 @@ Support for competition-specific points systems, including:
 - Women's Six Nations
 - WXV Global Series (2026)
 - WXV Global Series Challenger (2026)
+- Nations Championship Series (2026)
 
 ### CSV Import
 

@@ -238,6 +238,42 @@ def test_wxv_2026_import_bundles_are_complete_and_repeatable(connection):
             assert report.invalid == 0
 
 
+def test_nations_2026_import_bundle_provides_both_series(connection):
+    """Import the Nations Championship reference data and both fixture series.
+
+    :param connection: Empty migrated test database connection.
+    :return: None.
+    """
+    importer = CsvImportService(connection)
+    root = Path("data/imports/NATIONS-2026")
+
+    # Import in dependency order so names in later files resolve to stored rows.
+    for entity_type, filename in (
+        ("Venues", "venues.csv"),
+        ("Teams", "teams.csv"),
+        ("Competitions", "competitions.csv"),
+        ("Referees", "referees.csv"),
+        ("Matches", "matches.csv"),
+    ):
+        report = importer.import_csv(entity_type, (root / filename).read_bytes())
+        assert report.invalid == 0, report.error_rows()
+
+    competitions = {
+        row["name"]: row for row in importer.rugby.list_competitions()
+    }
+    assert set(competitions) == {
+        "Nations Championship Southern Series",
+        "Nations Championship Northern Series",
+    }
+    for competition in competitions.values():
+        matches = importer.rugby.list_matches(competition["id"])
+        result = importer.rugby.league_table(competition["id"])
+
+        assert competition["ruleset"] == "nations_2026"
+        assert len(matches) == 18
+        assert result["validation_errors"] == []
+
+
 def test_same_competition_name_across_seasons_is_allowed_and_matches_correctly(
     service, core_records, connection
 ):

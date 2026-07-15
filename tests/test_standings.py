@@ -118,7 +118,7 @@ def test_2025_26_rulesets_have_independent_identifiers_and_currently_same_result
     matches = [match(1, "Alpha", 2, "Bravo", 31, 27, 4, 4)]
     assert set(RULESETS) == {
         "prem_2025_26", "pwr_2025_26", "m6n", "w6n",
-        "wxv_global_2026", "wxv_challenger_2026",
+        "wxv_global_2026", "wxv_challenger_2026", "nations_2026",
     }
     assert calculate_table(matches, "prem_2025_26") == calculate_table(matches, "pwr_2025_26")
 
@@ -140,6 +140,40 @@ def test_wxv_rulesets_use_international_scoring_and_published_structures():
     assert global_series.league_table.tie_breakers == (
         "competition_points", "points_difference", "tries_for"
     )
+
+
+def test_nations_championship_ruleset_is_shared_by_both_geographic_series():
+    """Verify the shared 2026 Nations Championship series configuration.
+
+    :return: None.
+    """
+    ruleset = RULESETS["nations_2026"]
+
+    # A geographic series is one three-round window involving all twelve teams.
+    assert ruleset.competition.team_count == 12
+    assert ruleset.competition.matches_per_team == 3
+    assert ruleset.scoring == RULESETS["wxv_global_2026"].scoring
+    assert ruleset.league_table.tie_breakers == (
+        "competition_points", "wins", "points_difference", "tries_for"
+    )
+
+
+def test_nations_championship_uses_wins_before_points_difference():
+    """Rank equal competition points by wins before points difference.
+
+    :return: None.
+    """
+    matches = [
+        match(1, "One Win", 2, "Opponent A", 10, 9, 0, 0),
+        match(3, "Opponent B", 1, "One Win", 100, 0, 0, 0),
+        match(4, "No Wins", 5, "Opponent C", 3, 3, 0, 0),
+        match(4, "No Wins", 6, "Opponent D", 6, 6, 0, 0),
+    ]
+
+    table = calculate_table(matches, "nations_2026")
+    positions = {row["Team"]: row["Pos"] for row in table}
+
+    assert positions["One Win"] < positions["No Wins"]
 
 
 def test_unknown_ruleset_is_rejected():
