@@ -256,7 +256,6 @@ def venues_page(service: RugbyService, connection: Any) -> None:
         """
         return {
             "name": st.text_input("Name *", value=row["name"] if row else ""),
-            "country": st.text_input("Country *", value=row["country"] if row else ""),
             "town_city": st.text_input("Town/City", value=(row["town_city"] or "") if row else ""),
             "country": st.text_input("Country", value=(row["country"] or "") if row else ""),
         }
@@ -289,6 +288,9 @@ def teams_page(service: RugbyService, connection: Any) -> None:
         """
         return {
             "name": st.text_input("Name *", value=row["name"] if row else ""),
+            "country": st.text_input(
+                "Country *", value=row["country"] if row else ""
+            ),
             "gender": st.selectbox(
                 "Category *",
                 GENDERS,

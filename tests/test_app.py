@@ -241,6 +241,11 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
         app.selectbox[0].set_value("Women").run()
         assert set(app.dataframe[0].value["Category"]) == {"Women"}
         app.selectbox[0].set_value("Men and Women").run()
+        if page == "Teams":
+            # Selecting a team populates both editable identity fields.
+            app.session_state["team_table"] = {"selection": {"rows": [0]}}
+            app.run()
+            assert [field.value for field in app.text_input[:2]] == ["Bath", "Bath"]
 
     for page in ("CSV Import", "CSV Export"):
         app.radio[0].set_value(page).run()
