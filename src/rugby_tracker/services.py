@@ -10,9 +10,11 @@ from rugby_tracker.repositories import Repository, RugbyRepository
 from rugby_tracker.analysis import (
     CompetitionSummaryReport,
     HeadToHeadReport,
+    TeamFormReport,
     TeamSummaryReport,
     build_competition_summary,
     build_head_to_head,
+    build_team_form,
     build_team_summary,
 )
 from rugby_tracker.standings import RULESETS, calculate_competition, table_to_csv
@@ -381,6 +383,28 @@ class RugbyService:
         if not any(team_id in (int(row["home_team_id"]), int(row["away_team_id"])) for row in matches):
             raise ValidationError("Select a team participating in this competition and season.")
         return build_team_summary(competition, team, matches)
+
+    def team_form(
+        self, competition_id: int, team_id: int, window: int = 5
+    ) -> TeamFormReport:
+        """Calculate recent completed form for one competition team.
+
+        :param competition_id: Selected competition-season identifier.
+        :param team_id: Participating team identifier.
+        :param window: Maximum number of recent completed matches to include.
+        :return: Structured Team Form report.
+        """
+        competition = self.repo.competitions.get(competition_id)
+        team = next((row for row in self.repo.list_teams() if int(row["id"]) == team_id), None)
+        if competition is None or team is None:
+            raise ValidationError("Select a valid competition and team.")
+        matches = self.repo.list_matches(competition_id)
+        if not any(team_id in (int(row["home_team_id"]), int(row["away_team_id"])) for row in matches):
+            raise ValidationError("Select a team participating in this competition and season.")
+        try:
+            return build_team_form(competition, team, matches, window)
+        except ValueError as error:
+            raise ValidationError(str(error)) from error
 
     def competition_summary(self, competition_id: int) -> CompetitionSummaryReport:
         """Calculate a competition-wide summary for one season record.

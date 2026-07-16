@@ -31,6 +31,9 @@ from reportlab.platypus import (
 from rugby_tracker.standings import RULESETS, calculate_competition
 
 
+KNOCKOUT_ROUNDS = frozenset({"quarter-final", "semi-final", "final"})
+
+
 @dataclass(frozen=True)
 class TeamMatchResult:
     """One fixture represented from the selected team's perspective."""
@@ -105,6 +108,200 @@ class TeamSummaryReport:
         """
         # Guard empty seasons rather than dividing by zero.
         return self.won / self.played * 100 if self.played else 0.0
+
+
+@dataclass(frozen=True)
+class TeamFormMatchResult:
+    """One completed fixture in a Team Form report."""
+
+    round: str
+    match_date: str
+    opponent: str
+    location: str
+    venue: str
+    points_for: int
+    points_against: int
+    tries_for: int | None
+    tries_against: int | None
+    result: str
+    knockout: bool
+    competition_points: int | None
+
+    @property
+    def score(self) -> str:
+        """Format the selected team's score first.
+
+        :return: Team-relative score.
+        """
+        return f"{self.points_for}–{self.points_against}"
+
+    @property
+    def margin(self) -> int:
+        """Return a signed team-relative points margin.
+
+        :return: Positive, zero, or negative match margin.
+        """
+        return self.points_for - self.points_against
+
+
+@dataclass(frozen=True)
+class TeamFormReport:
+    """Structured recent-form calculations shared by the UI and PDF."""
+
+    team_id: int
+    team: str
+    competition: str
+    season: str
+    requested_window: int
+    season_matches: tuple[TeamFormMatchResult, ...]
+    matches: tuple[TeamFormMatchResult, ...]
+
+    @property
+    def played(self) -> int:
+        """Return included match count.
+
+        :return: Number of recent matches.
+        """
+        return len(self.matches)
+
+    @property
+    def won(self) -> int:
+        """Return recent wins.
+
+        :return: Win count.
+        """
+        return sum(match.result == "W" for match in self.matches)
+
+    @property
+    def drawn(self) -> int:
+        """Return recent draws.
+
+        :return: Draw count.
+        """
+        return sum(match.result == "D" for match in self.matches)
+
+    @property
+    def lost(self) -> int:
+        """Return recent losses.
+
+        :return: Loss count.
+        """
+        return sum(match.result == "L" for match in self.matches)
+
+    @property
+    def win_percentage(self) -> float:
+        """Return recent win percentage.
+
+        :return: Wins as a percentage of included matches.
+        """
+        return self.won / self.played * 100 if self.played else 0.0
+
+    @property
+    def points_for(self) -> int:
+        """Return recent points scored.
+
+        :return: Points-for total.
+        """
+        return sum(match.points_for for match in self.matches)
+
+    @property
+    def points_against(self) -> int:
+        """Return recent points conceded.
+
+        :return: Points-against total.
+        """
+        return sum(match.points_against for match in self.matches)
+
+    @property
+    def tries_for(self) -> int | None:
+        """Return recent tries scored when fully recorded.
+
+        :return: Try total, or ``None`` for incomplete data.
+        """
+        return _optional_total(match.tries_for for match in self.matches)
+
+    @property
+    def tries_against(self) -> int | None:
+        """Return recent tries conceded when fully recorded.
+
+        :return: Try total, or ``None`` for incomplete data.
+        """
+        return _optional_total(match.tries_against for match in self.matches)
+
+    @property
+    def competition_points(self) -> int:
+        """Return ruleset competition points from applicable matches.
+
+        :return: Competition-points total.
+        """
+        return sum(int(match.competition_points or 0) for match in self.matches)
+
+    @property
+    def form_sequence(self) -> str:
+        """Return oldest-to-newest result letters.
+
+        :return: Formatted form sequence.
+        """
+        return " – ".join(match.result for match in self.matches)
+
+    @property
+    def current_streak(self) -> tuple[str, tuple[TeamFormMatchResult, ...]]:
+        """Return the full-season streak ending at the latest result.
+
+        :return: Streak label and chronological matches.
+        """
+        latest = self.season_matches[-1].result
+        streak: list[TeamFormMatchResult] = []
+        for match in reversed(self.season_matches):
+            if match.result != latest:
+                break
+            streak.append(match)
+        labels = {"W": "Winning", "D": "Drawing", "L": "Losing"}
+        return labels[latest], tuple(reversed(streak))
+
+    @property
+    def season_win_percentage(self) -> float:
+        """Return full-season-to-date win percentage.
+
+        :return: Season win percentage.
+        """
+        wins = sum(match.result == "W" for match in self.season_matches)
+        return wins / len(self.season_matches) * 100
+
+    @property
+    def season_assessment(self) -> str:
+        """Compare recent and season win rates using the documented threshold.
+
+        :return: Better, worse, or broadly similar label.
+        """
+        difference = self.win_percentage - self.season_win_percentage
+        return "Better" if difference >= 10 else "Worse" if difference <= -10 else "Broadly similar"
+
+    @property
+    def trend(self) -> tuple[str, float | None]:
+        """Compare earlier and later average points differences.
+
+        :return: Trend label and signed change, when enough matches exist.
+        """
+        if self.played < 4:
+            return "Insufficient data", None
+        split = self.played // 2
+        earlier, later = self.matches[:split], self.matches[split:]
+        earlier_margin = sum(match.margin for match in earlier) / len(earlier)
+        later_margin = sum(match.margin for match in later) / len(later)
+        change = later_margin - earlier_margin
+        label = "Improving" if change >= 5 else "Declining" if change <= -5 else "Broadly stable"
+        return label, change
+
+
+def _optional_total(values: Any) -> int | None:
+    """Sum optional integers only when every value is available.
+
+    :param values: Iterable of optional integer values.
+    :return: Total, or ``None`` when a value is unavailable.
+    """
+    items = list(values)
+    return sum(int(value) for value in items) if all(value is not None for value in items) else None
 
 
 @dataclass(frozen=True)
@@ -569,6 +766,92 @@ def build_team_summary(
     )
 
 
+def build_team_form(
+    competition: dict[str, Any], team: dict[str, Any],
+    matches: list[dict[str, Any]], window: int = 5,
+) -> TeamFormReport:
+    """Calculate recent completed form for one participating team.
+
+    :param competition: Selected competition-season record.
+    :param team: Selected participating team record.
+    :param matches: Enriched competition fixtures in chronological order.
+    :param window: Maximum recent completed matches to include.
+    :return: Structured Team Form report.
+    """
+    if isinstance(window, bool) or not isinstance(window, int) or window < 1:
+        raise ValueError("Form window must be a positive whole number.")
+    ruleset_id = competition.get("ruleset")
+    if ruleset_id not in RULESETS:
+        raise ValueError("Select a league-table ruleset for this competition first.")
+    ruleset = RULESETS[str(ruleset_id)]
+    team_id = int(team["id"])
+    results: list[TeamFormMatchResult] = []
+    for match in matches:
+        is_home = int(match["home_team_id"]) == team_id
+        if not is_home and int(match["away_team_id"]) != team_id:
+            continue
+        if match["home_score"] is None or match["away_score"] is None:
+            continue
+        points_for = int(match["home_score"] if is_home else match["away_score"])
+        points_against = int(match["away_score"] if is_home else match["home_score"])
+        tries_value = match["home_tries"] if is_home else match["away_tries"]
+        tries_against_value = match["away_tries"] if is_home else match["home_tries"]
+        result = "W" if points_for > points_against else "L" if points_for < points_against else "D"
+        round_name = str(match.get("round") or "—")
+        normalised_round = round_name.strip().casefold()
+        excluded = normalised_round in ruleset.league_table.excluded_rounds
+        knockout = normalised_round in KNOCKOUT_ROUNDS | ruleset.league_table.excluded_rounds
+        competition_points: int | None = None
+        if not excluded:
+            scoring = ruleset.scoring
+            competition_points = (
+                scoring.win_points if result == "W" else
+                scoring.draw_points if result == "D" else scoring.loss_points
+            )
+            if tries_value is not None and int(tries_value) >= scoring.try_bonus_threshold:
+                competition_points += scoring.try_bonus_points
+            if result == "L" and points_against - points_for <= scoring.losing_bonus_margin:
+                competition_points += scoring.losing_bonus_points
+        results.append(TeamFormMatchResult(
+            round=round_name, match_date=str(match["match_date"]),
+            opponent=str(match["away_team_name"] if is_home else match["home_team_name"]),
+            location="Home" if is_home else "Away",
+            venue=str(match.get("venue_name") or "Not recorded"),
+            points_for=points_for, points_against=points_against,
+            tries_for=int(tries_value) if tries_value is not None else None,
+            tries_against=int(tries_against_value) if tries_against_value is not None else None,
+            result=result, knockout=knockout, competition_points=competition_points,
+        ))
+    if not results:
+        raise ValueError("No completed matches exist for this team in the selected competition and season.")
+    return TeamFormReport(
+        team_id=team_id, team=str(team["name"]),
+        competition=str(competition["name"]), season=str(competition["season"]),
+        requested_window=window, season_matches=tuple(results), matches=tuple(results[-window:]),
+    )
+
+
+def team_form_location_record(report: TeamFormReport, location: str) -> dict[str, Any]:
+    """Aggregate recent form for a home or away designation.
+
+    :param report: Calculated Team Form report.
+    :param location: Home or Away designation.
+    :return: Result and scoring totals for the location.
+    """
+    selected = [match for match in report.matches if match.location == location]
+    played = len(selected)
+    points_for = sum(match.points_for for match in selected)
+    points_against = sum(match.points_against for match in selected)
+    return {
+        "Location": location, "P": played,
+        "W": sum(match.result == "W" for match in selected),
+        "D": sum(match.result == "D" for match in selected),
+        "L": sum(match.result == "L" for match in selected),
+        "PF": points_for, "PA": points_against, "PD": points_for - points_against,
+        "Win %": sum(match.result == "W" for match in selected) / played * 100 if played else None,
+    }
+
+
 def build_competition_summary(
     competition: dict[str, Any], matches: list[dict[str, Any]]
 ) -> CompetitionSummaryReport:
@@ -778,6 +1061,204 @@ def team_summary_filename(report: TeamSummaryReport) -> str:
     return f"team-summary_{slug}.pdf"
 
 
+def team_summary_biggest_results(report: TeamSummaryReport) -> list[dict[str, Any]]:
+    """Return notable Team Summary matches as explicit table columns.
+
+    :param report: Calculated Team Summary report.
+    :return: Display rows retaining the reason each match is notable.
+    """
+    notable = (
+        ("Largest victory / biggest winning margin", report.largest_victory),
+        ("Largest defeat / biggest losing margin", report.largest_defeat),
+        ("Highest-scoring match", report.highest_scoring),
+        ("Lowest-scoring match", report.lowest_scoring),
+    )
+    return [{
+        "Measure": label,
+        "Round": match.round if match else "—",
+        "Date": match.match_date if match else "—",
+        "Opponents": match.opponent if match else "No qualifying result",
+        "Home/Away": match.location if match else "—",
+        "Score": (
+            f"{match.points_for}-{match.points_against}"
+            if match and match.points_for is not None and match.points_against is not None else "—"
+        ),
+    } for label, match in notable]
+
+
+def team_form_filename(report: TeamFormReport) -> str:
+    """Create a predictable filesystem-safe Team Form PDF filename.
+
+    :param report: Team Form report whose identity belongs in the filename.
+    :return: Normalised filename ending in ``.pdf``.
+    """
+    parts = [report.team, report.competition, report.season]
+    slug = "_".join(re.sub(r"[^a-z0-9]+", "-", part.casefold()).strip("-") for part in parts)
+    return f"team-form_{slug}.pdf"
+
+
+def render_team_form_pdf(report: TeamFormReport) -> bytes:
+    """Render a Team Form report as a paginated A4 PDF.
+
+    :param report: Structured Team Form report.
+    :return: Complete PDF document bytes.
+    """
+    output = io.BytesIO()
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(
+        name="TeamFormTitle", parent=styles["Title"], alignment=TA_CENTER,
+        textColor=colors.HexColor("#17365d"),
+    ))
+    document = SimpleDocTemplate(
+        output, pagesize=A4, rightMargin=14 * mm, leftMargin=14 * mm,
+        topMargin=15 * mm, bottomMargin=15 * mm,
+    )
+    story: list[Any] = [
+        Paragraph("Team Form Report", styles["TeamFormTitle"]),
+        Paragraph(f"{report.team} · {report.competition} · {report.season}", styles["Heading2"]),
+        Paragraph(f"Generated {date.today().strftime('%d %B %Y')}", styles["Normal"]),
+        Paragraph("Recent form is descriptive rather than predictive.", styles["Italic"]),
+        Spacer(1, 5 * mm),
+    ]
+
+    def section(title: str, rows: list[list[Any]], keep: bool = True) -> None:
+        """Append a consistently styled report table.
+
+        :param title: Section heading.
+        :param rows: Two-dimensional table values.
+        :param keep: Whether short content should remain together.
+        :return: None.
+        """
+        table = Table(rows, repeatRows=1, hAlign="LEFT")
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#d9eaf7")),
+            ("GRID", (0, 0), (-1, -1), 0.35, colors.grey),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        content = [Paragraph(title, styles["Heading2"]), table, Spacer(1, 4 * mm)]
+        story.extend([KeepTogether(content)] if keep and len(rows) <= 8 else content)
+
+    tries_for = report.tries_for if report.tries_for is not None else "Unavailable"
+    tries_against = report.tries_against if report.tries_against is not None else "Unavailable"
+    section("Report overview", [
+        ["Requested", "Available", "Included", "Date range", "Sequence"],
+        [report.requested_window, len(report.season_matches), report.played,
+         f"{report.matches[0].match_date} to {report.matches[-1].match_date}", report.form_sequence],
+    ])
+    section("Current form summary", [
+        ["P", "W", "D", "L", "Win %", "PF", "PA", "PD", "TF", "TA", "Comp pts"],
+        [report.played, report.won, report.drawn, report.lost, f"{report.win_percentage:.1f}%",
+         report.points_for, report.points_against, report.points_for - report.points_against,
+         tries_for, tries_against, report.competition_points],
+    ])
+    location_rows = [team_form_location_record(report, location) for location in ("Home", "Away")]
+    section("Home and away form", [
+        ["Location", "P", "W", "D", "L", "PF", "PA", "PD", "Win %"],
+        *[[row["Location"], row["P"], row["W"], row["D"], row["L"], row["PF"], row["PA"], row["PD"],
+           f"{row['Win %']:.1f}%" if row["Win %"] is not None else "—"] for row in location_rows],
+    ])
+    streak_type, streak = report.current_streak
+    trend, trend_change = report.trend
+    section("Context", [
+        ["Measure", "Value"],
+        ["Current streak", f"{streak_type}, {len(streak)} match(es), since {streak[0].match_date}"],
+        ["Streak opponents", ", ".join(match.opponent for match in streak)],
+        ["Season comparison", f"{report.season_assessment} ({report.win_percentage - report.season_win_percentage:+.1f} percentage points)"],
+        ["Form trend", trend if trend_change is None else f"{trend} ({trend_change:+.1f} PD per match)"],
+    ])
+    story.extend([PageBreak()])
+    section("Recent results", [
+        ["Date", "Stage", "H/A", "Opponent", "Venue", "Score", "Result", "TF", "TA", "Margin", "Pts"],
+        *[[match.match_date, f"{match.round}{' (KO)' if match.knockout else ''}", match.location[0],
+           match.opponent, match.venue, match.score, match.result,
+           match.tries_for if match.tries_for is not None else "—",
+           match.tries_against if match.tries_against is not None else "—", match.margin,
+           match.competition_points if match.competition_points is not None else "—"]
+          for match in reversed(report.matches)],
+    ], keep=False)
+    story.extend([Paragraph("Visualisations", styles["Heading2"])])
+
+    results_chart = Drawing(170 * mm, 55 * mm)
+    results_chart.add(String(0, 48 * mm, "Results breakdown", fontName="Helvetica-Bold", fontSize=11))
+    result_bars = VerticalBarChart()
+    result_bars.x, result_bars.y = 15 * mm, 8 * mm
+    result_bars.width, result_bars.height = 140 * mm, 34 * mm
+    result_bars.data = [[report.won, report.drawn, report.lost]]
+    result_bars.categoryAxis.categoryNames = ["Wins", "Draws", "Losses"]
+    result_bars.valueAxis.valueMin = 0
+    result_bars.valueAxis.valueMax = max(report.won, report.drawn, report.lost, 1)
+    result_bars.valueAxis.valueStep = 1
+    result_bars.bars[0].fillColor = colors.HexColor("#4472c4")
+    results_chart.add(result_bars)
+    story.extend([results_chart, Spacer(1, 3 * mm)])
+
+    points_chart = Drawing(170 * mm, 72 * mm)
+    points_chart.add(String(0, 65 * mm, "Points by recent match", fontName="Helvetica-Bold", fontSize=11))
+    lines = HorizontalLineChart()
+    lines.x, lines.y, lines.width, lines.height = 15 * mm, 22 * mm, 140 * mm, 35 * mm
+    lines.data = [[match.points_for for match in report.matches], [match.points_against for match in report.matches]]
+    lines.categoryAxis.categoryNames = [str(index) for index in range(1, report.played + 1)]
+    lines.lines[0].strokeColor = colors.HexColor("#4472c4")
+    lines.lines[1].strokeColor = colors.HexColor("#c55a11")
+    lines.lines[0].symbol = makeMarker("FilledCircle")
+    lines.lines[1].symbol = makeMarker("FilledCircle")
+    points_chart.add(lines)
+    legend = Legend()
+    legend.x, legend.y = 48 * mm, 9 * mm
+    legend.colorNamePairs = [(colors.HexColor("#4472c4"), "Points scored"), (colors.HexColor("#c55a11"), "Points conceded")]
+    points_chart.add(legend)
+    story.extend([points_chart, Spacer(1, 3 * mm)])
+
+    if report.tries_for is not None and report.tries_against is not None:
+        tries_chart = Drawing(170 * mm, 62 * mm)
+        tries_chart.add(String(0, 55 * mm, "Try-scoring form", fontName="Helvetica-Bold", fontSize=11))
+        try_bars = VerticalBarChart()
+        try_bars.x, try_bars.y = 15 * mm, 17 * mm
+        try_bars.width, try_bars.height = 140 * mm, 32 * mm
+        try_bars.data = [
+            [int(match.tries_for or 0) for match in report.matches],
+            [int(match.tries_against or 0) for match in report.matches],
+        ]
+        try_bars.categoryAxis.categoryNames = [str(index) for index in range(1, report.played + 1)]
+        try_bars.valueAxis.valueMin = 0
+        try_bars.valueAxis.valueMax = max(
+            *(int(match.tries_for or 0) for match in report.matches),
+            *(int(match.tries_against or 0) for match in report.matches),
+            1,
+        )
+        try_bars.valueAxis.valueStep = 1
+        try_bars.bars[0].fillColor = colors.HexColor("#4472c4")
+        try_bars.bars[1].fillColor = colors.HexColor("#c55a11")
+        tries_chart.add(try_bars)
+        try_legend = Legend()
+        try_legend.x, try_legend.y = 48 * mm, 6 * mm
+        try_legend.colorNamePairs = [
+            (colors.HexColor("#4472c4"), "Tries scored"),
+            (colors.HexColor("#c55a11"), "Tries conceded"),
+        ]
+        tries_chart.add(try_legend)
+        story.append(tries_chart)
+
+    def add_page_number(canvas: Any, doc: Any) -> None:
+        """Draw the current page number in the footer.
+
+        :param canvas: ReportLab canvas.
+        :param doc: Active document template.
+        :return: None.
+        """
+        canvas.saveState()
+        canvas.setFont("Helvetica", 8)
+        canvas.drawRightString(A4[0] - 14 * mm, 8 * mm, f"Page {doc.page}")
+        canvas.restoreState()
+
+    document.build(story, onFirstPage=add_page_number, onLaterPages=add_page_number)
+    return output.getvalue()
+
+
 def render_team_summary_pdf(report: TeamSummaryReport) -> bytes:
     """Render a team summary as a paginated A4 PDF.
 
@@ -823,7 +1304,12 @@ def render_team_summary_pdf(report: TeamSummaryReport) -> bytes:
         section("League performance", [["Position", "Competition points", "Points difference", "Champion"], [report.league["position"], report.league["competition_points"], report.league["points_difference"], "Yes" if report.league["champion"] else "No"]])
     section("Scoring and tries", [["Points for", "Points against", "Difference", "Avg for", "Avg against", "Tries for", "Tries against"], [report.points_for, report.points_against, report.points_for - report.points_against, f"{report.points_for / report.played:.1f}" if report.played else "0.0", f"{report.points_against / report.played:.1f}" if report.played else "0.0", report.tries_for if report.tries_for is not None else "Unavailable", report.tries_against if report.tries_against is not None else "Unavailable"]])
     section("Home and away", [["Location", "P", "W", "D", "L", "PF", "PA", "PD"], *[[label, record["played"], record["won"], record["drawn"], record["lost"], record["points_for"], record["points_against"], record["points_difference"]] for label, record in (("Home", report.home_record), ("Away", report.away_record))]])
-    section("Biggest results", [["Measure", "Match"], ["Largest victory", report.largest_victory.context if report.largest_victory else "No qualifying result"], ["Largest defeat", report.largest_defeat.context if report.largest_defeat else "No qualifying result"], ["Highest-scoring match", report.highest_scoring.context if report.highest_scoring else "No completed match"], ["Lowest-scoring match", report.lowest_scoring.context if report.lowest_scoring else "No completed match"]])
+    biggest_results = team_summary_biggest_results(report)
+    biggest_columns = ("Measure", "Round", "Date", "Opponents", "Home/Away", "Score")
+    section("Biggest results", [
+        list(biggest_columns),
+        *[[row[column] for column in biggest_columns] for row in biggest_results],
+    ])
     story.extend([PageBreak(), Paragraph("Visualisations", styles["Heading2"])])
     results_chart = Drawing(170 * mm, 55 * mm)
     results_chart.add(String(0, 48 * mm, "Results breakdown", fontName="Helvetica-Bold", fontSize=11))
@@ -870,7 +1356,7 @@ def render_team_summary_pdf(report: TeamSummaryReport) -> bytes:
         points_chart.add(legend)
         story.extend([points_chart, Spacer(1, 4 * mm)])
     section("Points by match", [["Date", "Opponent", "For", "Against"], *[[match.match_date, match.opponent, match.points_for, match.points_against] for match in completed]])
-    section("Match results", [["Round", "Date", "Opponent", "H/A", "Venue", "PF", "PA", "Score", "Result"], *[[match.round, match.match_date, match.opponent, match.location[0], match.venue, match.points_for if match.points_for is not None else "—", match.points_against if match.points_against is not None else "—", match.score, match.result] for match in report.matches]])
+    section("Match results", [["Round", "Date", "Opponent", "Home/Away", "Venue", "PF", "PA", "Score", "Result"], *[[match.round, match.match_date, match.opponent, match.location[0], match.venue, match.points_for if match.points_for is not None else "—", match.points_against if match.points_against is not None else "—", match.score, match.result] for match in report.matches]])
 
     def add_page_number(canvas: Any, doc: Any) -> None:
         """Draw the current page number in the footer.
