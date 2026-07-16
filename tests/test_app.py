@@ -77,7 +77,7 @@ def test_app_starts_with_an_empty_database(monkeypatch, tmp_path):
     assert not app.exception
     assert app.title[0].value == "🏉 Rugby Tracker"
     assert [tab.label for tab in app.tabs] == [
-        "Competition Summary", "Head-to-Head", "Team Summary"
+        "Competition Summary", "Head-to-Head", "Team Summary", "Team Form"
     ]
     assert "Add a competition" in app.info[0].value
 

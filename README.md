@@ -91,7 +91,7 @@ Additional competitions are added as their structures and regulations become est
 
 ### Team Summary
 
-The Analysis section provides supporter-focused reports built directly from the recorded competition data. **Team Summary** explores one team's season, **Competition Summary** presents a season-wide view, and **Head-to-Head** compares every recorded meeting between two teams.
+The Analysis section provides supporter-focused reports built directly from the recorded competition data. **Team Summary** explores one team's season, **Team Form** concentrates on its latest completed matches, **Competition Summary** presents a season-wide view, and **Head-to-Head** compares every recorded meeting between two teams.
 
 The report includes:
 
@@ -108,6 +108,23 @@ The report includes:
 - Chronological match history
 
 Reports can also be exported as formatted PDF documents for sharing or offline reference.
+
+### Team Form
+
+The Team Form report provides a focused view of a team's recent performance within a selected competition and season. The form window is configurable from one to twenty completed matches and defaults to five.
+
+The report includes:
+
+- Recent wins, draws, losses, scoring, tries and competition points
+- An oldest-to-newest form sequence
+- A detailed recent-results table with knockout stages identified
+- Results breakdown, scoring-form and try-scoring charts
+- Home and away form with underlying match counts
+- The current uninterrupted streak across the full season
+- Comparison between recent form and season performance
+- An explainable improving, broadly stable or declining trend assessment
+
+Only completed matches contribute to the report. Competition points use the selected competition's ruleset, while missing try data and seasons shorter than the requested form window are handled gracefully. The complete report, including its charts, can be exported as a formatted PDF document.
 
 ### Head-to-Head
 

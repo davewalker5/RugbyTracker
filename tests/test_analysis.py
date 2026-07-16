@@ -11,7 +11,11 @@ from rugby_tracker.analysis import (
     render_competition_summary_pdf,
     render_head_to_head_pdf,
     render_team_summary_pdf,
+    render_team_form_pdf,
+    team_form_filename,
+    team_form_location_record,
     team_summary_filename,
+    team_summary_biggest_results,
 )
 from rugby_tracker.services import RugbyService
 
@@ -41,6 +45,11 @@ def test_team_summary_calculates_team_perspective_and_pdf(connection) -> None:
     assert report.away_record["points_difference"] == -4
     assert report.largest_victory and report.largest_victory.opponent == "York"
     assert report.largest_defeat and report.largest_defeat.location == "Away"
+    assert team_summary_biggest_results(report)[0] == {
+        "Measure": "Largest victory / biggest winning margin",
+        "Round": "—", "Date": "2025-09-01", "Opponents": "York",
+        "Home/Away": "Home", "Score": "30-10",
+    }
     assert team_summary_filename(report) == "team-summary_london_test-league_2025-26.pdf"
     assert render_team_summary_pdf(report).startswith(b"%PDF")
 
@@ -64,6 +73,56 @@ def test_team_summary_rejects_non_participating_team(connection) -> None:
         assert "participating" in str(error)
     else:
         raise AssertionError("Expected an unrelated team to be rejected.")
+
+
+def test_team_form_calculates_window_streak_trend_and_pdf(connection) -> None:
+    """Calculate recent form while retaining full-season streak context."""
+    service = RugbyService(connection)
+    country = service.save_country(name="England")
+    venue = service.save_venue(name="Ground", country_id=country)
+    alpha = service.save_team(name="Alpha", country_id=country, gender="Women", home_venue_id=venue)
+    beta = service.save_team(name="Beta", country_id=country, gender="Women", home_venue_id=venue)
+    competition = service.save_competition(name="Form Cup", season="2026", gender="Women", ruleset="w6n")
+    scores = [(10, 20, 1, 3), (15, 15, 2, 2), (28, 20, 4, 3), (35, 10, 5, 1), (30, 12, 4, 2)]
+    for index, (home_score, away_score, home_tries, away_tries) in enumerate(scores, start=1):
+        service.save_match(
+            competition_id=competition, round=str(index), venue_id=venue,
+            match_date=f"2026-03-{index:02d}", home_team_id=alpha, away_team_id=beta,
+            home_score=home_score, away_score=away_score,
+            home_tries=home_tries, away_tries=away_tries,
+        )
+
+    report = service.team_form(competition, alpha, 4)
+
+    assert len(report.season_matches) == 5
+    assert (report.played, report.won, report.drawn, report.lost) == (4, 3, 1, 0)
+    assert report.form_sequence == "D – W – W – W"
+    assert report.current_streak[0] == "Winning"
+    assert len(report.current_streak[1]) == 3
+    assert report.trend[0] == "Improving"
+    assert report.competition_points == 17
+    assert team_form_location_record(report, "Home")["P"] == 4
+    assert team_form_filename(report) == "team-form_alpha_form-cup_2026.pdf"
+    assert render_team_form_pdf(report).startswith(b"%PDF")
+
+
+def test_team_form_rejects_empty_results_and_invalid_window(connection) -> None:
+    """Require at least one completed result and a positive form window."""
+    service = RugbyService(connection)
+    country = service.save_country(name="Wales")
+    venue = service.save_venue(name="Ground", country_id=country)
+    alpha = service.save_team(name="Alpha", country_id=country, gender="Men", home_venue_id=venue)
+    beta = service.save_team(name="Beta", country_id=country, gender="Men", home_venue_id=venue)
+    competition = service.save_competition(name="Form Cup", season="2026", gender="Men", ruleset="m6n")
+    service.save_match(competition_id=competition, venue_id=venue, match_date="2026-01-01", home_team_id=alpha, away_team_id=beta)
+
+    for window, message in ((5, "completed"), (0, "positive")):
+        try:
+            service.team_form(competition, alpha, window)
+        except ValueError as error:
+            assert message in str(error)
+        else:
+            raise AssertionError("Expected invalid Team Form inputs to be rejected.")
 
 
 def test_competition_summary_calculates_rankings_rounds_and_pdf(connection) -> None:

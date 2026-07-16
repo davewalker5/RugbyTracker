@@ -203,7 +203,7 @@ def test_m6n_2026_import_bundle_produces_the_official_final_table(connection):
     root = Path("data/imports/M6N-2026")
     imports = (
         ("Countries", "countries.csv", 6),
-        ("Venues", "venues.csv", 7),
+        ("Venues", "venues.csv", 8),
         ("Teams", "teams.csv", 6),
         ("Competitions", "competitions.csv", 1),
         ("Referees", "referees.csv", 12),
@@ -223,10 +223,10 @@ def test_m6n_2026_import_bundle_produces_the_official_final_table(connection):
 
     assert result["complete"] is True
     assert summary == [
-        ("France", 211, 130, 21),
+        ("Les Bleus", 211, 130, 21),
         ("Ireland", 146, 108, 18),
         ("Scotland", 143, 144, 16),
-        ("Italy", 79, 117, 9),
+        ("Azzurri", 79, 117, 9),
         ("England", 153, 151, 8),
         ("Wales", 90, 172, 6),
     ]
@@ -288,19 +288,24 @@ def test_nations_2026_import_bundle_provides_both_series(connection):
     :return: None.
     """
     importer = CsvImportService(connection)
-    root = Path("data/imports/NATIONS-2026")
+    roots = (
+        Path("data/imports/NATIONS-NORTHERN-2026"),
+        Path("data/imports/NATIONS-SOUTHERN-2026"),
+    )
 
-    # Import in dependency order so names in later files resolve to stored rows.
-    for entity_type, filename in (
-        ("Countries", "countries.csv"),
-        ("Venues", "venues.csv"),
-        ("Teams", "teams.csv"),
-        ("Competitions", "competitions.csv"),
-        ("Referees", "referees.csv"),
-        ("Matches", "matches.csv"),
-    ):
-        report = importer.import_csv(entity_type, (root / filename).read_bytes())
-        assert report.invalid == 0, report.error_rows()
+    # Import both self-contained bundles in dependency order. Shared reference
+    # rows are skipped on the second import while series-specific data is added.
+    for root in roots:
+        for entity_type, filename in (
+            ("Countries", "countries.csv"),
+            ("Venues", "venues.csv"),
+            ("Teams", "teams.csv"),
+            ("Competitions", "competitions.csv"),
+            ("Referees", "referees.csv"),
+            ("Matches", "matches.csv"),
+        ):
+            report = importer.import_csv(entity_type, (root / filename).read_bytes())
+            assert report.invalid == 0, report.error_rows()
 
     competitions = {
         row["name"]: row for row in importer.rugby.list_competitions()

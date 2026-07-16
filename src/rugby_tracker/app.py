@@ -13,6 +13,7 @@ from pandas.io.formats.style import Styler
 from rugby_tracker.analysis import (
     CompetitionSummaryReport,
     HeadToHeadReport,
+    TeamFormReport,
     TeamSummaryReport,
     competition_round_summary,
     competition_summary_filename,
@@ -21,8 +22,12 @@ from rugby_tracker.analysis import (
     head_to_head_host_record,
     render_competition_summary_pdf,
     render_head_to_head_pdf,
+    render_team_form_pdf,
     render_team_summary_pdf,
     team_summary_filename,
+    team_summary_biggest_results,
+    team_form_filename,
+    team_form_location_record,
 )
 from rugby_tracker.database import apply_migrations, connect
 from rugby_tracker.exports import EXPORT_TYPES, CsvExportService
@@ -55,6 +60,23 @@ def _clear_analysis_team() -> None:
     """
     # Teams are scoped to a specific competition-season record.
     st.session_state.pop("analysis_team", None)
+
+
+def _clear_team_form_season() -> None:
+    """Clear dependent Team Form selections after a competition change.
+
+    :return: None.
+    """
+    st.session_state.pop("team_form_season", None)
+    st.session_state.pop("team_form_team", None)
+
+
+def _clear_team_form_team() -> None:
+    """Clear the Team Form team after a season change.
+
+    :return: None.
+    """
+    st.session_state.pop("team_form_team", None)
 
 
 def _clear_competition_analysis_season() -> None:
@@ -646,6 +668,136 @@ def _metric_cards(values: list[tuple[str, str | int | float]]) -> None:
     )
 
 
+def _render_team_form(report: TeamFormReport) -> None:
+    """Render a structured Team Form report in Streamlit.
+
+    :param report: Calculated report shared with the PDF renderer.
+    :return: None.
+    """
+    st.header(f"{report.team} — Recent form")
+    st.caption(f"{report.competition} · {report.season} · oldest to most recent")
+    st.download_button(
+        "Download PDF", render_team_form_pdf(report),
+        file_name=team_form_filename(report), mime="application/pdf",
+        type="primary", key="team_form_pdf",
+    )
+    st.subheader("Report overview")
+    _metric_cards([
+        ("Requested window", report.requested_window),
+        ("Completed available", len(report.season_matches)),
+        ("Matches included", report.played),
+        ("Date range", f"{report.matches[0].match_date} to {report.matches[-1].match_date}"),
+    ])
+    if report.played < report.requested_window:
+        st.info(f"Only {report.played} completed match(es) are available, so all have been included.")
+
+    st.subheader("Current form summary")
+    _metric_cards([
+        ("Played", report.played), ("Won", report.won),
+        ("Drawn", report.drawn), ("Lost", report.lost),
+        ("Win percentage", f"{report.win_percentage:.1f}%"),
+    ])
+    _metric_cards([
+        ("Points scored", report.points_for), ("Points conceded", report.points_against),
+        ("Points difference", f"{report.points_for - report.points_against:+d}"),
+        ("Tries scored", report.tries_for if report.tries_for is not None else "Unavailable"),
+        ("Tries conceded", report.tries_against if report.tries_against is not None else "Unavailable"),
+        ("Competition points", report.competition_points),
+    ])
+
+    st.subheader("Form sequence")
+    st.markdown(f"### {report.form_sequence}")
+    st.caption("W = win · D = draw · L = loss")
+
+    st.subheader("Recent results")
+    st.dataframe(pd.DataFrame([{
+        "Date": match.match_date, "Round / stage": match.round,
+        "Match type": "Knockout" if match.knockout else "League",
+        "Home/Away": match.location, "Opponent": match.opponent, "Venue": match.venue,
+        "Score": match.score, "Result": match.result,
+        "Points scored": match.points_for, "Points conceded": match.points_against,
+        "Tries scored": match.tries_for, "Tries conceded": match.tries_against,
+        "Margin": match.margin,
+        "Competition points": match.competition_points if match.competition_points is not None else "—",
+    } for match in reversed(report.matches)]), hide_index=True, width="stretch")
+
+    chart_left, chart_right = st.columns(2)
+    with chart_left:
+        st.subheader("Results breakdown")
+        st.bar_chart(pd.DataFrame(
+            {"Matches": [report.won, report.drawn, report.lost]},
+            index=["Wins", "Draws", "Losses"],
+        ))
+    with chart_right:
+        st.subheader("Scoring form")
+        st.line_chart(pd.DataFrame({
+            "Points scored": [match.points_for for match in report.matches],
+            "Points conceded": [match.points_against for match in report.matches],
+        }, index=[f"{match.match_date} · {match.opponent}" for match in report.matches]))
+
+    if report.tries_for is not None:
+        st.subheader("Try-scoring form")
+        st.bar_chart(pd.DataFrame({
+            "Tries scored": [match.tries_for for match in report.matches],
+            "Tries conceded": [match.tries_against for match in report.matches],
+        }, index=[f"{match.match_date} · {match.opponent}" for match in report.matches]))
+
+    st.subheader("Home and away form")
+    location_rows = [team_form_location_record(report, location) for location in ("Home", "Away")]
+    for row in location_rows:
+        row["Win %"] = f"{row['Win %']:.1f}%" if row["Win %"] is not None else "—"
+    st.dataframe(pd.DataFrame(location_rows), hide_index=True, width="stretch")
+    st.caption("Match counts are shown because short home and away samples should be interpreted cautiously.")
+
+    streak_type, streak = report.current_streak
+    st.subheader("Current streak")
+    _metric_cards([
+        ("Streak type", streak_type), ("Matches", len(streak)),
+        ("Began", streak[0].match_date),
+        ("Opponents", ", ".join(match.opponent for match in streak)),
+    ])
+
+    st.subheader("Comparison with season performance")
+    recent_average_for = report.points_for / report.played
+    recent_average_against = report.points_against / report.played
+    season_for = sum(match.points_for for match in report.season_matches) / len(report.season_matches)
+    season_against = sum(match.points_against for match in report.season_matches) / len(report.season_matches)
+    recent_tries = report.tries_for / report.played if report.tries_for is not None else None
+    season_tries_total = (
+        sum(int(match.tries_for) for match in report.season_matches)
+        if all(match.tries_for is not None for match in report.season_matches) else None
+    )
+    season_tries = season_tries_total / len(report.season_matches) if season_tries_total is not None else None
+    _metric_cards([
+        ("Assessment", report.season_assessment),
+        ("Recent win %", f"{report.win_percentage:.1f}%"),
+        ("Season win %", f"{report.season_win_percentage:.1f}%"),
+        ("Difference", f"{report.win_percentage - report.season_win_percentage:+.1f} points"),
+    ])
+    st.dataframe(pd.DataFrame([
+        {"Measure": "Average points scored", "Recent form": recent_average_for, "Season": season_for},
+        {"Measure": "Average points conceded", "Recent form": recent_average_against, "Season": season_against},
+        {"Measure": "Average tries scored", "Recent form": recent_tries, "Season": season_tries},
+        {"Measure": "Points difference / match", "Recent form": recent_average_for - recent_average_against, "Season": season_for - season_against},
+    ]).round(1), hide_index=True, width="stretch")
+    st.caption("Better/worse means a win-rate difference of at least 10 percentage points.")
+
+    trend, change = report.trend
+    st.subheader("Form trend")
+    _metric_cards([("Direction", trend), ("Points-difference change", "—" if change is None else f"{change:+.1f} per match")])
+    if change is not None:
+        split = report.played // 2
+        periods = (("Earlier", report.matches[:split]), ("Later", report.matches[split:]))
+        st.dataframe(pd.DataFrame([{
+            "Period": label, "Matches": len(matches),
+            "Win %": sum(match.result == "W" for match in matches) / len(matches) * 100,
+            "Avg points scored": sum(match.points_for for match in matches) / len(matches),
+            "Avg points conceded": sum(match.points_against for match in matches) / len(matches),
+            "Points difference / match": sum(match.margin for match in matches) / len(matches),
+        } for label, matches in periods]).round(1), hide_index=True, width="stretch")
+    st.caption("The selected period is split into earlier and later matches. A change of at least 5 points per match indicates improving or declining form. This is descriptive, not predictive.")
+
+
 def _render_competition_summary(report: CompetitionSummaryReport) -> None:
     """Render a structured competition summary in Streamlit.
 
@@ -924,16 +1076,10 @@ def _render_team_summary(report: TeamSummaryReport) -> None:
     ]), hide_index=True, width="stretch")
 
     st.subheader("Biggest results")
-    notable = [
-        ("Largest victory / biggest winning margin", report.largest_victory),
-        ("Largest defeat / biggest losing margin", report.largest_defeat),
-        ("Highest-scoring match", report.highest_scoring),
-        ("Lowest-scoring match", report.lowest_scoring),
-    ]
-    st.dataframe(pd.DataFrame([
-        {"Measure": label, "Match": match.context if match else "No qualifying result"}
-        for label, match in notable
-    ]), hide_index=True, width="stretch")
+    st.dataframe(
+        pd.DataFrame(team_summary_biggest_results(report)),
+        hide_index=True, width="stretch",
+    )
 
     # Charts include text labels and legends so colour is never the only cue.
     st.subheader("Visualisations")
@@ -969,8 +1115,8 @@ def analysis_page(service: RugbyService) -> None:
     :return: None.
     """
     st.header("Analysis")
-    competition_summary_tab, head_to_head_tab, team_summary_tab = st.tabs(
-        ("Competition Summary", "Head-to-Head", "Team Summary")
+    competition_summary_tab, head_to_head_tab, team_summary_tab, team_form_tab = st.tabs(
+        ("Competition Summary", "Head-to-Head", "Team Summary", "Team Form")
     )
     competitions = service.list_competitions()
 
@@ -1112,6 +1258,57 @@ def analysis_page(service: RugbyService) -> None:
             _render_team_summary(report)
         elif not competitions:
             st.info("Add a competition and its matches to generate a team summary.")
+        else:
+            st.info("Select a competition, year, and team to generate the report.")
+
+    with team_form_tab:
+        names = sorted({str(row["name"]) for row in competitions}, key=str.casefold)
+        selected_name = st.selectbox(
+            "Competition", names, index=None, placeholder="Select a competition",
+            key="team_form_competition", on_change=_clear_team_form_season,
+        )
+        seasons = sorted(
+            {str(row["season"]) for row in competitions if row["name"] == selected_name},
+            reverse=True,
+        )
+        selected_season = st.selectbox(
+            "Year", seasons, index=0 if len(seasons) == 1 else None,
+            placeholder="Select a year", disabled=selected_name is None,
+            key="team_form_season", on_change=_clear_team_form_team,
+        )
+        selected_competition = next((
+            row for row in competitions
+            if row["name"] == selected_name and str(row["season"]) == selected_season
+        ), None)
+        matches = service.list_matches(int(selected_competition["id"])) if selected_competition else []
+        participating_ids = {
+            int(team_id) for match in matches
+            for team_id in (match["home_team_id"], match["away_team_id"])
+        }
+        teams = sorted(
+            [row for row in service.list_teams() if int(row["id"]) in participating_ids],
+            key=lambda row: str(row["name"]).casefold(),
+        )
+        selected_team = _select(
+            "Team", {int(row["id"]): str(row["name"]) for row in teams},
+            placeholder="Select a team", key="team_form_team",
+        ) if selected_competition else st.selectbox(
+            "Team", [], index=None, placeholder="Select a team", disabled=True,
+            key="team_form_team_disabled",
+        )
+        window = st.number_input(
+            "Recent matches", min_value=1, max_value=20, value=5, step=1,
+            key="team_form_window", help="Only completed matches are counted.",
+        )
+        if selected_competition and selected_team is not None:
+            try:
+                _render_team_form(service.team_form(
+                    int(selected_competition["id"]), int(selected_team), int(window)
+                ))
+            except ValidationError as error:
+                st.warning(str(error))
+        elif not competitions:
+            st.info("Add a competition and its matches to generate a Team Form report.")
         else:
             st.info("Select a competition, year, and team to generate the report.")
 
