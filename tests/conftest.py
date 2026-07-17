@@ -6,6 +6,7 @@ import pytest
 
 from rugby_tracker.database import apply_migrations, connect
 from rugby_tracker.services import RugbyService
+from rugby_tracker.standings import reload_rulesets
 
 
 @pytest.fixture
@@ -13,6 +14,14 @@ def database(tmp_path):
     path = tmp_path / "rugby.db"
     apply_migrations(path)
     return path
+
+
+@pytest.fixture(autouse=True)
+def ruleset_registry(database):
+    """Populate the compatibility registry from each test database."""
+    connection = connect(database)
+    reload_rulesets(connection)
+    connection.close()
 
 
 @pytest.fixture

@@ -33,7 +33,6 @@ from rugby_tracker.database import apply_migrations, connect
 from rugby_tracker.exports import EXPORT_TYPES, CsvExportService
 from rugby_tracker.imports import IMPORT_TYPES, CsvImportService, ImportReport
 from rugby_tracker.services import GENDERS, RugbyService, ValidationError
-from rugby_tracker.standings import RULESETS
 
 
 WIN_BACKGROUND = "#d9ead3"
@@ -415,7 +414,8 @@ def competitions_page(service: RugbyService, connection: Any) -> None:
     :return: None.
     """
     records = service.list_competitions()
-    ruleset_options = ["", *RULESETS]
+    rulesets = service.list_rulesets()
+    ruleset_options = ["", *rulesets]
 
     def fields(row: dict[str, Any] | None) -> dict[str, Any]:
         """Render competition fields and collect their values.
@@ -439,7 +439,7 @@ def competitions_page(service: RugbyService, connection: Any) -> None:
                     ruleset_options.index(row["ruleset"] or "")
                     if row and (row["ruleset"] or "") in ruleset_options else None
                 ),
-                format_func=lambda value: "No league table" if value == "" else RULESETS[value].label,
+                format_func=lambda value: "No league table" if value == "" else rulesets[value].label,
                 placeholder="Select a league-table ruleset (optional)",
             ),
         }
@@ -447,7 +447,7 @@ def competitions_page(service: RugbyService, connection: Any) -> None:
     display_rows = [
         {
             **row,
-            "ruleset_label": RULESETS[row["ruleset"]].label if row.get("ruleset") in RULESETS else "—",
+            "ruleset_label": rulesets[row["ruleset"]].label if row.get("ruleset") in rulesets else "—",
         }
         for row in records
     ]

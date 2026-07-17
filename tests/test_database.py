@@ -24,6 +24,9 @@ def test_database_is_empty_after_first_migration(connection):
     assert connection.execute(
         "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'standings'"
     ).fetchone()[0] == 0
+    assert connection.execute(
+        "SELECT count(*) FROM competition_rulesets"
+    ).fetchone()[0] == 7
 
 
 def test_migrations_are_repeatable(database):

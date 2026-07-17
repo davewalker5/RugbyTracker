@@ -204,6 +204,49 @@ def test_2025_26_rulesets_have_independent_identifiers_and_currently_same_result
     assert calculate_table(matches, "prem_2025_26") == calculate_table(matches, "pwr_2025_26")
 
 
+def test_new_standard_ruleset_can_be_added_with_one_database_row(service, connection):
+    connection.execute(
+        """
+        INSERT INTO competition_rulesets (
+            identifier, label, win_points, draw_points, loss_points,
+            try_bonus_threshold, try_bonus_points, losing_bonus_margin,
+            losing_bonus_points, tie_breakers
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            "example_league_2027", "Example League (2027)", 5, 2, 0,
+            3, 1, 5, 1, '["competition_points","wins","points_for"]',
+        ),
+    )
+
+    rulesets = service.list_rulesets()
+    table = calculate_table(
+        [match(1, "Alpha", 2, "Bravo", 20, 16, 3, 2)],
+        "example_league_2027",
+    )
+
+    assert rulesets["example_league_2027"].label == "Example League (2027)"
+    assert table[0]["Team"] == "Alpha"
+    assert table[0]["Pts"] == 6
+    assert table[1]["Pts"] == 1
+
+
+def test_database_ruleset_rejects_unknown_calculation_capability(service, connection):
+    connection.execute(
+        """
+        INSERT INTO competition_rulesets (
+            identifier, label, win_points, draw_points, loss_points,
+            try_bonus_threshold, try_bonus_points, losing_bonus_margin,
+            losing_bonus_points, tie_breakers
+        ) VALUES ('unsupported', 'Unsupported', 4, 2, 0, 4, 1, 7, 1,
+                  '["competition_points","coin_toss"]')
+        """
+    )
+
+    with pytest.raises(ValueError, match="unsupported tie-breakers: coin_toss"):
+        service.list_rulesets()
+
+
 def test_wxv_rulesets_use_international_scoring_and_published_structures():
     """Verify the two 2026 WXV competition definitions.
 
