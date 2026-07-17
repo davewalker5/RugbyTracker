@@ -17,6 +17,7 @@ class CompetitionFormat:
     single_round_robin: bool = False
     home_and_away: bool = False
     knockout_stage: bool = False
+    playoff_teams: int = 0
 
 
 @dataclass(frozen=True)
@@ -122,9 +123,22 @@ RULESETS = {
     "prem_2025_26": Ruleset(
         "prem_2025_26",
         "Premiership Rugby (2025/26)",
-        CompetitionFormat(),
+        CompetitionFormat(
+            team_count=10,
+            matches_per_team=18,
+            home_and_away=True,
+            knockout_stage=True,
+            playoff_teams=4,
+        ),
         _CLUB_SCORING,
-        _CLUB_TABLE,
+        LeagueTableRules(
+            (
+                "competition_points", "wins", "points_difference",
+                "points_for", "head_to_head_points",
+            ),
+            excluded_rounds=frozenset({"quarter-final", "semi-final", "final"}),
+            share_equal_positions=True,
+        ),
     ),
     "pwr_2025_26": Ruleset(
         "pwr_2025_26",
@@ -275,16 +289,19 @@ def calculate_table(matches: list[dict[str, Any]], ruleset_identifier: str) -> l
     """
     ruleset = get_ruleset(ruleset_identifier)
     standings = _aggregate(matches, ruleset)
+    head_to_head = _head_to_head_points(matches, standings, ruleset)
     ordered = sorted(
         standings.values(),
-        key=lambda row: (*_ranking_key(row, ruleset), row.team.casefold(), row.team_id),
+        key=lambda row: (
+            *_ranking_key(row, ruleset, head_to_head), row.team.casefold(), row.team_id
+        ),
     )
 
     rows: list[dict[str, Any]] = []
     previous_rank: tuple[int, ...] | None = None
     position = 0
     for index, standing in enumerate(ordered, start=1):
-        rank = _ranking_key(standing, ruleset)
+        rank = _ranking_key(standing, ruleset, head_to_head)
         if not ruleset.league_table.share_equal_positions or rank != previous_rank:
             position = index
         rows.append(standing.as_row(position))
@@ -307,11 +324,25 @@ def calculate_competition(
     included = _included_matches(matches, ruleset)
     complete = not validation_errors and all(_is_completed(match) for match in included)
     awards = _calculate_awards(matches, table, ruleset) if complete else {}
+    qualifiers: tuple[str, ...] = ()
+    semi_finals: tuple[tuple[str, str], ...] = ()
+    if complete and ruleset.competition.playoff_teams:
+        cutoff = ruleset.competition.playoff_teams
+        cutoff_is_decided = len(table) == cutoff or (
+            len(table) > cutoff and table[cutoff - 1]["Pos"] != table[cutoff]["Pos"]
+        )
+        if cutoff_is_decided:
+            qualifiers = tuple(str(row["Team"]) for row in table[:cutoff])
+        seeds_are_decided = len({row["Pos"] for row in table[:cutoff]}) == cutoff
+        if len(qualifiers) == 4 and seeds_are_decided:
+            semi_finals = ((qualifiers[0], qualifiers[3]), (qualifiers[1], qualifiers[2]))
     return {
         "table": table,
         "complete": complete,
         "validation_errors": validation_errors,
         "awards": awards,
+        "qualifiers": qualifiers,
+        "semi_finals": semi_finals,
     }
 
 
@@ -330,6 +361,7 @@ def validate_competition(matches: list[dict[str, Any]], ruleset_identifier: str)
     included = _included_matches(matches, ruleset)
     teams: set[int] = set()
     opponents: set[tuple[int, int]] = set()
+    directed_pairings: set[tuple[int, int]] = set()
     appearances: dict[int, int] = {}
     duplicate_pairing = False
     for match in included:
@@ -341,6 +373,7 @@ def validate_competition(matches: list[dict[str, Any]], ruleset_identifier: str)
         pairing = tuple(sorted((home_id, away_id)))
         duplicate_pairing = duplicate_pairing or pairing in opponents
         opponents.add(pairing)
+        directed_pairings.add((home_id, away_id))
 
     errors: list[str] = []
     if len(teams) != format_rules.team_count:
@@ -352,6 +385,15 @@ def validate_competition(matches: list[dict[str, Any]], ruleset_identifier: str)
         errors.append(f"Expected {expected_matches} matches, found {len(included)}.")
     if format_rules.single_round_robin and duplicate_pairing:
         errors.append("Each pair of teams must play exactly once.")
+    if format_rules.home_and_away:
+        expected_matches *= 2
+        if len(included) != expected_matches:
+            errors.append(f"Expected {expected_matches} matches, found {len(included)}.")
+        if len(teams) == format_rules.team_count and any(
+            home_id == away_id or (away_id, home_id) not in directed_pairings
+            for home_id, away_id in directed_pairings
+        ):
+            errors.append("Each pair of teams must play once at home and once away.")
     if format_rules.matches_per_team is not None and any(
         count != format_rules.matches_per_team for count in appearances.values()
     ):
@@ -406,9 +448,25 @@ def _included_matches(matches: list[dict[str, Any]], ruleset: Ruleset) -> list[d
     """
     return [
         match for match in matches
-        if str(match.get("round") or "").strip().casefold()
-        not in ruleset.league_table.excluded_rounds
+        if _normalised_stage(match) not in ruleset.league_table.excluded_rounds
     ]
+
+
+def _normalised_stage(match: dict[str, Any]) -> str:
+    """Return a canonical stage, preferring an explicit stage field when supplied.
+
+    :param match: Candidate match with a stage, match type or round value.
+    :return: Case-folded, hyphenated canonical stage name.
+    """
+    value = match.get("stage") or match.get("match_type") or match.get("round") or ""
+    stage = "-".join(str(value).strip().casefold().replace("_", " ").split())
+    aliases = {
+        "semifinal": "semi-final",
+        "semi-finals": "semi-final",
+        "semifinals": "semi-final",
+        "the-final": "final",
+    }
+    return aliases.get(stage, stage)
 
 
 def _is_completed(match: dict[str, Any]) -> bool:
@@ -420,20 +478,72 @@ def _is_completed(match: dict[str, Any]) -> bool:
     return match.get("home_score") is not None and match.get("away_score") is not None
 
 
-def _ranking_key(standing: Standing, ruleset: Ruleset) -> tuple[int, ...]:
+def _ranking_key(
+    standing: Standing,
+    ruleset: Ruleset,
+    head_to_head: dict[int, int] | None = None,
+) -> tuple[int, ...]:
     """Build a descending sort key from configured criteria.
 
     :param standing: Aggregated team record.
     :param ruleset: Rules containing ordered tie-break criteria.
+    :param head_to_head: Optional aggregate direct-fixture points keyed by team.
     :return: Numeric key suitable for ascending sorting.
     """
     values = {
         "competition_points": standing.league_points,
         "wins": standing.won,
         "points_difference": standing.points_difference,
+        "points_for": standing.points_for,
         "tries_for": standing.tries_for,
+        "head_to_head_points": (head_to_head or {}).get(standing.team_id, 0),
     }
     return tuple(-values[criterion] for criterion in ruleset.league_table.tie_breakers)
+
+
+def _head_to_head_points(
+    matches: list[dict[str, Any]],
+    standings: dict[int, Standing],
+    ruleset: Ruleset,
+) -> dict[int, int]:
+    """Return points scored against teams level on all preceding criteria.
+
+    :param matches: Enriched fixture and result rows.
+    :param standings: Aggregated regular-season standings keyed by team.
+    :param ruleset: Rules containing the ordered tie-break criteria.
+    :return: Aggregate direct-fixture match points keyed by tied team.
+    """
+    criteria = ruleset.league_table.tie_breakers
+    if "head_to_head_points" not in criteria:
+        return {}
+    preceding = criteria[:criteria.index("head_to_head_points")]
+    groups: dict[tuple[int, ...], set[int]] = {}
+    for standing in standings.values():
+        key = _ranking_key(
+            standing,
+            Ruleset(
+                ruleset.identifier, ruleset.label, ruleset.competition, ruleset.scoring,
+                LeagueTableRules(preceding), ruleset.awards,
+            ),
+        )
+        groups.setdefault(key, set()).add(standing.team_id)
+
+    scores = {team_id: 0 for team_id in standings}
+    tied_by_team = {
+        team_id: group
+        for group in groups.values() if len(group) > 1
+        for team_id in group
+    }
+    for match in _included_matches(matches, ruleset):
+        if not _is_completed(match):
+            continue
+        home_id = int(match["home_team_id"])
+        away_id = int(match["away_team_id"])
+        if away_id not in tied_by_team.get(home_id, set()):
+            continue
+        scores[home_id] += int(match["home_score"])
+        scores[away_id] += int(match["away_score"])
+    return scores
 
 
 def _apply_result(home: Standing, away: Standing, match: dict[str, Any], ruleset: Ruleset) -> None:

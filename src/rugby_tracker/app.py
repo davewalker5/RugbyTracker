@@ -1344,6 +1344,11 @@ def league_table_page(service: RugbyService) -> None:
         st.dataframe(result["table"], width="stretch", hide_index=True)
     else:
         st.info("No teams appear in this competition's fixtures yet.")
+    if result["complete"] and result["qualifiers"]:
+        st.subheader("Play-off qualification")
+        st.markdown(f"**Semi-finalists:** {', '.join(result['qualifiers'])}")
+        for index, (home, away) in enumerate(result["semi_finals"], start=1):
+            st.markdown(f"**Semi-final {index}:** {home} vs {away}")
     awarded = {
         award: teams for award, teams in result["awards"].items() if teams
     }
