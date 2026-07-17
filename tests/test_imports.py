@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import ast
+import csv
+import io
 from pathlib import Path
 
 from rugby_tracker.imports import IMPORT_TYPES, CsvImportService
@@ -11,7 +13,51 @@ def test_templates_have_supported_headers(connection):
     for entity_type in IMPORT_TYPES:
         template = importer.template(entity_type)
         assert template.strip()
-        assert "name" in template or "competition" in template
+        assert "name" in template or "competition" in template or "identifier" in template
+
+
+def test_ruleset_csv_import_adds_a_loadable_ruleset_and_rejects_bad_capabilities(
+    connection,
+):
+    """Import complete ruleset rows using export-compatible JSON columns.
+
+    :param connection: Empty migrated test database connection.
+    :return: None.
+    """
+    importer = CsvImportService(connection)
+    source = connection.execute(
+        "SELECT * FROM competition_rulesets WHERE identifier = 'prem_2025_26'"
+    ).fetchone()
+    valid = dict(source)
+    valid["identifier"] = "example_2027"
+    valid["label"] = "Example League (2027)"
+    invalid = {**valid, "identifier": "bad_2027", "tie_breakers": '["coin_toss"]'}
+    output = io.StringIO(newline="")
+    writer = csv.DictWriter(output, fieldnames=importer.template("Rulesets").strip().split(","))
+    writer.writeheader()
+    writer.writerows((valid, invalid))
+
+    report = importer.import_csv("Rulesets", output.getvalue())
+
+    assert (report.imported, report.invalid) == (1, 1)
+    assert "example_2027" in importer.rugby.list_rulesets()
+    assert "Unsupported tie breakers: coin_toss." in report.issues[0].messages
+
+
+def test_ruleset_csv_import_is_repeatable(connection):
+    """Skip a ruleset row when its versioned identifier already exists.
+
+    :param connection: Empty migrated test database connection.
+    :return: None.
+    """
+    importer = CsvImportService(connection)
+    content = importer.template("Rulesets") + (
+        "prem_2025_26,Ignored,,,,,,,,,,,,,,,,,,,,,,,,\n"
+    )
+
+    report = importer.import_csv("Rulesets", content)
+
+    assert (report.imported, report.skipped, report.invalid) == (0, 1, 0)
 
 
 def test_reference_imports_are_case_insensitive_and_repeatable(service, core_records, connection):

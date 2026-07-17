@@ -42,6 +42,13 @@ def test_csv_exports_use_import_schemas_and_related_names(
     assert list(csv.DictReader(io.StringIO(exported["Venues"])))[0]["name"] == "The Rec"
     assert list(csv.DictReader(io.StringIO(exported["Teams"])))[0]["home_venue"] == "The Rec"
     assert list(csv.DictReader(io.StringIO(exported["Teams"])))[0]["country"] == "Bath"
+    rulesets = list(csv.DictReader(io.StringIO(exported["Rulesets"])))
+    assert len(rulesets) == 7
+    prem = next(row for row in rulesets if row["identifier"] == "prem_2025_26")
+    assert prem["tie_breakers"] == (
+        '["competition_points","wins","points_difference","points_for",'
+        '"head_to_head_points"]'
+    )
     assert list(csv.DictReader(io.StringIO(exported["Competitions"])))[0]["name"] == "Premiership Rugby"
     assert list(csv.DictReader(io.StringIO(exported["Referees"])))[0]["name"] == "Luke Pearce"
     match_row = list(csv.DictReader(io.StringIO(exported["Matches"])))[0]
@@ -128,3 +135,30 @@ def test_competition_filter_exports_only_related_records(
         "Neutral Ground", "The Rec", "Welford Road",
     }
     assert {row["competition"] for row in rows("Matches")} == {"Premiership Rugby"}
+
+
+def test_competition_filter_exports_only_its_referenced_ruleset(
+    service, core_records, connection
+):
+    """Include the selected competition's ruleset as an export dependency.
+
+    :param service: Rugby service backed by the test database.
+    :param core_records: Identifiers for existing reference records.
+    :param connection: Open test database connection.
+    :return: None.
+    """
+    service.save_competition(
+        entity_id=core_records["competition"],
+        name="Premiership Rugby",
+        season="2025/26",
+        gender="Men",
+        ruleset="prem_2025_26",
+    )
+
+    rows = list(csv.DictReader(io.StringIO(
+        CsvExportService(connection).export_csv(
+            "Rulesets", core_records["competition"]
+        )
+    )))
+
+    assert [row["identifier"] for row in rows] == ["prem_2025_26"]

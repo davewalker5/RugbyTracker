@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import date, time
@@ -18,13 +19,27 @@ from rugby_tracker.services import (
     required_text,
     valid_ruleset,
 )
+from rugby_tracker.standings import SUPPORTED_TIE_BREAKERS
 
 
-IMPORT_TYPES = ("Countries", "Venues", "Teams", "Competitions", "Referees", "Matches")
+RULESET_HEADERS = (
+    "identifier", "label", "team_count", "matches_per_team",
+    "single_round_robin", "home_and_away", "knockout_stage", "playoff_teams",
+    "win_points", "draw_points", "loss_points", "try_bonus_threshold",
+    "try_bonus_points", "losing_bonus_margin", "losing_bonus_points",
+    "grand_slam_bonus_points", "tie_breakers", "excluded_rounds",
+    "share_equal_positions", "champion", "grand_slam", "triple_crown",
+    "wooden_spoon", "triple_crown_teams", "special_handler",
+)
+
+IMPORT_TYPES = (
+    "Countries", "Venues", "Teams", "Rulesets", "Competitions", "Referees", "Matches"
+)
 TEMPLATE_HEADERS = {
     "Countries": ("name",),
     "Venues": ("name", "town_city", "country"),
     "Teams": ("name", "country", "gender", "home_venue"),
+    "Rulesets": RULESET_HEADERS,
     "Competitions": ("name", "season", "gender", "ruleset"),
     "Referees": ("name",),
     "Matches": (
@@ -38,6 +53,11 @@ REQUIRED_HEADERS = {
     "Countries": {"name"},
     "Venues": {"name"},
     "Teams": {"name", "country", "gender", "home_venue"},
+    "Rulesets": {
+        "identifier", "label", "win_points", "draw_points", "loss_points",
+        "try_bonus_threshold", "try_bonus_points", "losing_bonus_margin",
+        "losing_bonus_points", "tie_breakers",
+    },
     "Competitions": {"name", "season", "gender"},
     "Referees": {"name"},
     "Matches": {
@@ -150,6 +170,7 @@ class CsvImportService:
             "Countries": self._validate_country,
             "Venues": self._validate_venue,
             "Teams": self._validate_team,
+            "Rulesets": self._validate_ruleset,
             "Competitions": self._validate_competition,
             "Referees": self._validate_referee,
             "Matches": self._validate_match,
@@ -303,6 +324,140 @@ class CsvImportService:
             "gender": gender,
             "ruleset": ruleset,
         }, messages
+
+    def _validate_ruleset(
+        self, row: dict[str, str]
+    ) -> tuple[dict[str, Any] | None, list[str]]:
+        """Validate one declarative ruleset import row.
+
+        :param row: Normalised CSV row containing database ruleset columns.
+        :return: Prepared database values and validation messages.
+        """
+        messages: list[str] = []
+        values: dict[str, Any] = {
+            "identifier": self._value(
+                lambda: required_text(row.get("identifier"), "Ruleset identifier"), messages
+            ),
+            "label": self._value(
+                lambda: required_text(row.get("label"), "Ruleset label"), messages
+            ),
+        }
+        for field, label in (
+            ("team_count", "Team count"),
+            ("matches_per_team", "Matches per team"),
+        ):
+            values[field] = self._value(
+                lambda field=field, label=label: self._optional_number(row.get(field), label),
+                messages,
+            )
+        for field, label in (
+            ("playoff_teams", "Play-off teams"),
+            ("win_points", "Win points"),
+            ("draw_points", "Draw points"),
+            ("loss_points", "Loss points"),
+            ("try_bonus_threshold", "Try bonus threshold"),
+            ("try_bonus_points", "Try bonus points"),
+            ("losing_bonus_margin", "Losing bonus margin"),
+            ("losing_bonus_points", "Losing bonus points"),
+            ("grand_slam_bonus_points", "Grand Slam bonus points"),
+        ):
+            default = "0" if field in {"playoff_teams", "grand_slam_bonus_points"} else None
+            values[field] = self._value(
+                lambda field=field, label=label, default=default: non_negative(
+                    row.get(field) or default, label
+                ),
+                messages,
+            )
+        for field, label in (
+            ("single_round_robin", "Single round robin"),
+            ("home_and_away", "Home and away"),
+            ("knockout_stage", "Knockout stage"),
+            ("share_equal_positions", "Share equal positions"),
+            ("champion", "Champion"),
+            ("grand_slam", "Grand Slam"),
+            ("triple_crown", "Triple Crown"),
+            ("wooden_spoon", "Wooden Spoon"),
+        ):
+            values[field] = self._value(
+                lambda field=field, label=label: self._boolean(row.get(field), label),
+                messages,
+            )
+        tie_breakers = self._value(
+            lambda: self._json_list(row.get("tie_breakers"), "Tie breakers", required=True),
+            messages,
+        )
+        if tie_breakers is not None:
+            unsupported = set(tie_breakers) - SUPPORTED_TIE_BREAKERS
+            if unsupported:
+                messages.append(
+                    "Unsupported tie breakers: " + ", ".join(sorted(unsupported)) + "."
+                )
+            values["tie_breakers"] = json.dumps(tie_breakers, separators=(",", ":"))
+        for field, label in (
+            ("excluded_rounds", "Excluded rounds"),
+            ("triple_crown_teams", "Triple Crown teams"),
+        ):
+            parsed = self._value(
+                lambda field=field, label=label: self._json_list(row.get(field), label),
+                messages,
+            )
+            if parsed is not None:
+                values[field] = json.dumps(parsed, separators=(",", ":"))
+        values["special_handler"] = optional_text(row.get("special_handler"))
+        if values["special_handler"]:
+            messages.append("Special handlers must be implemented in Python before import.")
+        return (None, messages) if messages else (values, messages)
+
+    @staticmethod
+    def _optional_number(value: str | None, label: str) -> int | None:
+        """Validate an optional non-negative integer.
+
+        :param value: Candidate CSV value.
+        :param label: User-facing field label.
+        :return: A non-negative integer, or ``None`` when blank.
+        """
+        return None if optional_text(value) is None else non_negative(value, label)
+
+    @staticmethod
+    def _boolean(value: str | None, label: str) -> int:
+        """Validate a flexible CSV boolean and return its database value.
+
+        :param value: Blank, true/false, yes/no, or one/zero CSV value.
+        :param label: User-facing field label.
+        :return: Zero or one for database persistence.
+        :raises ValidationError: If a non-blank value is not a supported boolean.
+        """
+        candidate = (optional_text(value) or "false").casefold()
+        if candidate in {"true", "yes", "1"}:
+            return 1
+        if candidate in {"false", "no", "0"}:
+            return 0
+        raise ValidationError(f"{label} must be true or false.")
+
+    @staticmethod
+    def _json_list(
+        value: str | None, label: str, required: bool = False
+    ) -> list[str]:
+        """Validate a JSON array containing only non-empty strings.
+
+        :param value: JSON text supplied by the CSV row.
+        :param label: User-facing field label.
+        :param required: Whether an empty array is invalid.
+        :return: Parsed string values.
+        :raises ValidationError: If the value is not a suitable JSON array.
+        """
+        candidate = optional_text(value) or "[]"
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError as error:
+            raise ValidationError(f"{label} must be a valid JSON array.") from error
+        if not isinstance(parsed, list) or any(
+            not isinstance(item, str) or not item.strip() for item in parsed
+        ):
+            raise ValidationError(f"{label} must be a JSON array of non-empty strings.")
+        if required and not parsed:
+            raise ValidationError(f"{label} must contain at least one value.")
+        return [item.strip() for item in parsed]
 
     def _validate_referee(self, row: dict[str, str]) -> tuple[dict[str, Any] | None, list[str]]:
         """Validate one referee import row.
@@ -614,6 +769,11 @@ class CsvImportService:
                 """
             ).fetchall()
             return {(row["name"].casefold(), row["country"].casefold()) for row in rows}
+        if entity_type == "Rulesets":
+            rows = self.connection.execute(
+                "SELECT identifier FROM competition_rulesets"
+            ).fetchall()
+            return {(row["identifier"].casefold(),) for row in rows}
         if entity_type == "Competitions":
             rows = self.connection.execute("SELECT name, season, gender FROM competitions").fetchall()
             return {(row["name"].casefold(), row["season"].casefold(), row["gender"].casefold()) for row in rows}
@@ -642,6 +802,9 @@ class CsvImportService:
         :return: Duplicate key, or ``None`` when identity cannot be established.
         """
         name = optional_text(row.get("name"))
+        if entity_type == "Rulesets":
+            identifier = optional_text(row.get("identifier"))
+            return (identifier.casefold(),) if identifier else None
         if entity_type in {"Countries", "Venues", "Referees"}:
             return (name.casefold(),) if name else None
 
@@ -741,6 +904,8 @@ class CsvImportService:
         """
         if entity_type in {"Countries", "Venues"}:
             return (values["name"].casefold(),)
+        if entity_type == "Rulesets":
+            return (values["identifier"].casefold(),)
         if entity_type == "Teams":
             country = self._country_name(values["country_id"])
             return values["name"].casefold(), country.casefold()
@@ -772,6 +937,16 @@ class CsvImportService:
         :param values: Validated values ready for persistence.
         :return: Identifier of the imported record.
         """
+        if entity_type == "Rulesets":
+            columns = tuple(values)
+            placeholders = ", ".join("?" for _ in columns)
+            self.connection.execute(
+                f"INSERT INTO competition_rulesets ({', '.join(columns)}) "
+                f"VALUES ({placeholders})",
+                tuple(values[column] for column in columns),
+            )
+            self.rugby.list_rulesets()
+            return 0
         action = {
             "Countries": self.rugby.save_country,
             "Venues": self.rugby.save_venue,

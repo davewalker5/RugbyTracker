@@ -1394,7 +1394,7 @@ def import_page(connection: Any) -> None:
     """
     st.header("CSV Import")
     st.write(
-        "Import countries, venues, teams, competitions, referees, fixtures, and results. "
+        "Import countries, venues, teams, rulesets, competitions, referees, fixtures, and results. "
         "Names are matched without regard to capitalisation. Invalid rows are reported and refused."
     )
     entity_type = st.selectbox(
@@ -1421,6 +1421,11 @@ def import_page(connection: Any) -> None:
     elif entity_type == "Venues":
         st.caption(
             "A supplied country must already exist and is matched using the country column."
+        )
+    elif entity_type == "Rulesets":
+        st.caption(
+            "Tie breakers, excluded rounds, and Triple Crown teams must be JSON arrays. "
+            "Existing ruleset identifiers are skipped; use a new versioned identifier when rules change."
         )
     elif entity_type == "Matches":
         st.caption(
@@ -1474,7 +1479,7 @@ def export_page(connection: Any) -> None:
     # Keep the control layout parallel with CSV Import for familiarity.
     st.header("CSV Export")
     st.write(
-        "Export countries, competitions, venues, teams, referees, fixtures, and results as CSV."
+        "Export countries, competitions, venues, teams, rulesets, referees, fixtures, and results as CSV."
     )
     competitions = RugbyService(connection).list_competitions()
     entity_type = st.selectbox(

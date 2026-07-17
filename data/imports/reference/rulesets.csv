@@ -1,0 +1,8 @@
+identifier,label,team_count,matches_per_team,single_round_robin,home_and_away,knockout_stage,playoff_teams,win_points,draw_points,loss_points,try_bonus_threshold,try_bonus_points,losing_bonus_margin,losing_bonus_points,grand_slam_bonus_points,tie_breakers,excluded_rounds,share_equal_positions,champion,grand_slam,triple_crown,wooden_spoon,triple_crown_teams,special_handler
+m6n,Men's Six Nations,6,5,1,0,0,0,4,2,0,4,1,7,1,3,"[""competition_points"",""points_difference"",""tries_for""]",[],1,1,1,1,1,"[""England"",""Ireland"",""Scotland"",""Wales""]",
+nations_2026,Nations Championship Series (2026),12,3,0,0,0,0,4,2,0,4,1,7,1,0,"[""competition_points"",""wins"",""points_difference"",""tries_for""]",[],0,1,0,0,0,[],
+prem_2025_26,Premiership Rugby (2025/26),10,18,0,1,1,4,4,2,0,4,1,7,1,0,"[""competition_points"",""wins"",""points_difference"",""points_for"",""head_to_head_points""]","[""quarter-final"",""semi-final"",""final""]",1,0,0,0,0,[],
+pwr_2025_26,Premiership Women's Rugby (2025/26),,,0,0,0,0,4,2,0,4,1,7,1,0,"[""competition_points"",""points_difference""]","[""quarter-final"",""semi-final"",""final""]",0,0,0,0,0,[],
+w6n,Women's Six Nations,6,5,1,0,0,0,4,2,0,4,1,7,1,3,"[""competition_points"",""points_difference"",""tries_for""]",[],1,1,1,1,1,"[""England"",""Ireland"",""Scotland"",""Wales""]",
+wxv_challenger_2026,WXV Global Series Challenger (2026),6,3,0,0,0,0,4,2,0,4,1,7,1,0,"[""competition_points"",""points_difference"",""tries_for""]",[],0,1,0,0,0,[],
+wxv_global_2026,WXV Global Series (2026),12,,0,0,0,0,4,2,0,4,1,7,1,0,"[""competition_points"",""points_difference"",""tries_for""]",[],0,1,0,0,0,[],
