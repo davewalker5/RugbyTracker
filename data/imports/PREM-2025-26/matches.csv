@@ -1,0 +1,94 @@
+competition,season,round,venue,referee,date,kickoff_time,home_team,home_country,away_team,away_country,home_tries,away_tries,home_score,away_score
+PREM,2025/26,1,CorpAcq Stadium,Christophe Ridley,2025-09-25,19:45,Sale Sharks,England,Gloucester Rugby,England,4,1,27,10
+PREM,2025/26,1,Twickenham Stoop,Karl Dickson,2025-09-26,19:45,Harlequins,England,Bath Rugby,England,5,7,31,47
+PREM,2025/26,1,Kingston Park Stadium,Adam Leal,2025-09-26,19:45,Newcastle Red Bulls,England,Saracens,England,2,5,17,39
+PREM,2025/26,1,Cinch Stadium,Joe James,2025-09-28,13:00,Northampton Saints,England,Exeter Chiefs,England,5,5,33,33
+PREM,2025/26,1,Ashton Gate,Anthony Woodthorpe,2025-09-28,15:30,Bristol Bears,England,Leicester Tigers,England,5,4,42,24
+PREM,2025/26,2,The Recreation Ground,Anthony Woodthorpe,2025-10-03,19:45,Bath Rugby,England,Sale Sharks,England,4,1,28,16
+PREM,2025/26,2,Sandy Park,Craig Maxwell-Keys,2025-10-04,15:00,Exeter Chiefs,England,Newcastle Red Bulls,England,6,2,38,15
+PREM,2025/26,2,Mattioli Woods Welford Road,Hamish Smales,2025-10-04,15:05,Leicester Tigers,England,Harlequins,England,4,1,29,19
+PREM,2025/26,2,StoneX Stadium,Christophe Ridley,2025-10-04,17:30,Saracens,England,Bristol Bears,England,7,3,50,17
+PREM,2025/26,2,Kingsholm,Adam Leal,2025-10-05,15:00,Gloucester Rugby,England,Northampton Saints,England,5,4,35,37
+PREM,2025/26,3,CorpAcq Stadium,Joe James,2025-10-10,19:45,Sale Sharks,England,Newcastle Red Bulls,England,9,1,57,5
+PREM,2025/26,3,Ashton Gate,Anthony Woodthorpe,2025-10-11,15:00,Bristol Bears,England,Exeter Chiefs,England,2,2,18,14
+PREM,2025/26,3,Cinch Stadium,Luke Pearce,2025-10-11,15:05,Northampton Saints,England,Leicester Tigers,England,5,2,32,26
+PREM,2025/26,3,The Recreation Ground,Karl Dickson,2025-10-11,17:30,Bath Rugby,England,Gloucester Rugby,England,5,3,38,17
+PREM,2025/26,3,Twickenham Stoop,Adam Leal,2025-10-12,15:00,Harlequins,England,Saracens,England,2,2,20,14
+PREM,2025/26,4,Kingsholm,Craig Maxwell-Keys,2025-10-17,19:45,Gloucester Rugby,England,Bristol Bears,England,5,7,34,49
+PREM,2025/26,4,Kingston Park Stadium,Ian Tempest,2025-10-17,19:45,Newcastle Red Bulls,England,Northampton Saints,England,3,5,19,36
+PREM,2025/26,4,Mattioli Woods Welford Road,Adam Leal,2025-10-18,15:05,Leicester Tigers,England,Bath Rugby,England,3,3,22,20
+PREM,2025/26,4,StoneX Stadium,Matthew Carley,2025-10-18,17:30,Saracens,England,Sale Sharks,England,10,2,65,14
+PREM,2025/26,4,Sandy Park,Karl Dickson,2025-10-19,15:00,Exeter Chiefs,England,Harlequins,England,5,0,38,0
+PREM,2025/26,5,Cinch Stadium,Anthony Woodthorpe,2025-10-24,19:45,Northampton Saints,England,Saracens,England,7,5,43,31
+PREM,2025/26,5,Sandy Park,Adam Leal,2025-10-25,15:00,Exeter Chiefs,England,Gloucester Rugby,England,5,2,39,12
+PREM,2025/26,5,Twickenham Stoop,Craig Maxwell-Keys,2025-10-25,15:00,Harlequins,England,Newcastle Red Bulls,England,8,2,52,14
+PREM,2025/26,5,The Recreation Ground,Ian Tempest,2025-10-25,15:05,Bath Rugby,England,Bristol Bears,England,6,2,40,15
+PREM,2025/26,5,Mattioli Woods Welford Road,Karl Dickson,2025-10-25,17:30,Leicester Tigers,England,Sale Sharks,England,5,5,36,35
+PREM,2025/26,6,CorpAcq Stadium,Anthony Woodthorpe,2025-11-28,19:45,Sale Sharks,England,Exeter Chiefs,England,2,3,26,27
+PREM,2025/26,6,Kingston Park Stadium,Sara Cox,2025-11-28,19:45,Newcastle Red Bulls,England,Leicester Tigers,England,2,5,17,39
+PREM,2025/26,6,Kingsholm,Luke Pearce,2025-11-29,15:00,Gloucester Rugby,England,Harlequins,England,4,2,26,15
+PREM,2025/26,6,Ashton Gate,Ian Tempest,2025-11-29,17:45,Bristol Bears,England,Northampton Saints,England,6,2,46,12
+PREM,2025/26,6,StoneX Stadium,Christophe Ridley,2025-11-30,15:00,Saracens,England,Bath Rugby,England,4,5,29,36
+PREM,2025/26,7,Mattioli Woods Welford Road,Karl Dickson,2025-12-19,19:45,Leicester Tigers,England,Gloucester Rugby,England,7,2,45,14
+PREM,2025/26,7,StoneX Stadium,Luke Pearce,2025-12-20,15:00,Saracens,England,Exeter Chiefs,England,4,4,24,30
+PREM,2025/26,7,Cinch Stadium,Christophe Ridley,2025-12-20,15:00,Northampton Saints,England,Sale Sharks,England,7,3,47,21
+PREM,2025/26,7,Twickenham Stadium,Anthony Woodthorpe,2025-12-20,17:30,Harlequins,England,Bristol Bears,England,2,6,14,40
+PREM,2025/26,7,Kingston Park Stadium,Hamish Smales,2025-12-21,15:00,Newcastle Red Bulls,England,Bath Rugby,England,2,8,14,50
+PREM,2025/26,8,CorpAcq Stadium,Ian Tempest,2025-12-26,17:30,Sale Sharks,England,Harlequins,England,7,2,43,17
+PREM,2025/26,8,Ashton Gate,George Selwood,2025-12-27,15:00,Bristol Bears,England,Newcastle Red Bulls,England,6,4,36,27
+PREM,2025/26,8,Kingsholm,Adam Leal,2025-12-27,15:05,Gloucester Rugby,England,Saracens,England,3,4,21,30
+PREM,2025/26,8,The Recreation Ground,Craig Maxwell-Keys,2025-12-27,17:30,Bath Rugby,England,Northampton Saints,England,3,6,21,41
+PREM,2025/26,8,Sandy Park,Anthony Woodthorpe,2025-12-28,15:00,Exeter Chiefs,England,Leicester Tigers,England,3,1,24,10
+PREM,2025/26,9,Kingston Park Stadium,Christophe Ridley,2026-01-02,19:45,Newcastle Red Bulls,England,Gloucester Rugby,England,3,3,25,19
+PREM,2025/26,9,Ashton Gate,Joe James,2026-01-02,19:45,Bristol Bears,England,Sale Sharks,England,3,2,19,17
+PREM,2025/26,9,The Recreation Ground,Luke Pearce,2026-01-03,15:05,Bath Rugby,England,Exeter Chiefs,England,5,4,33,26
+PREM,2025/26,9,Cinch Stadium,Sara Cox,2026-01-03,17:30,Northampton Saints,England,Harlequins,England,10,3,66,21
+PREM,2025/26,9,Mattioli Woods Welford Road,Matthew Carley,2026-01-04,15:00,Leicester Tigers,England,Saracens,England,5,4,36,28
+PREM,2025/26,10,Kingsholm,Ian Tempest,2026-01-23,19:45,Gloucester Rugby,England,Bath Rugby,England,4,4,26,30
+PREM,2025/26,10,Sandy Park,Karl Dickson,2026-01-24,15:00,Exeter Chiefs,England,Bristol Bears,England,0,1,3,8
+PREM,2025/26,10,StoneX Stadium,Joe James,2026-01-24,15:00,Saracens,England,Newcastle Red Bulls,England,11,2,73,14
+PREM,2025/26,10,Twickenham Stoop,Adam Leal,2026-01-24,15:05,Harlequins,England,Leicester Tigers,England,1,5,7,34
+PREM,2025/26,10,CorpAcq Stadium,Anthony Woodthorpe,2026-01-24,17:30,Sale Sharks,England,Northampton Saints,England,4,7,29,43
+PREM,2025/26,11,The Recreation Ground,,2026-03-20,19:45,Bath Rugby,England,Saracens,England,9,2,62,15
+PREM,2025/26,11,Twickenham Stoop,,2026-03-21,15:00,Harlequins,England,Gloucester Rugby,England,3,4,19,26
+PREM,2025/26,11,Cinch Stadium,,2026-03-21,15:00,Northampton Saints,England,Newcastle Red Bulls,England,4,4,28,27
+PREM,2025/26,11,Sandy Park,,2026-03-21,15:05,Exeter Chiefs,England,Sale Sharks,England,4,2,26,14
+PREM,2025/26,11,Mattioli Woods Welford Road,,2026-03-22,15:00,Leicester Tigers,England,Bristol Bears,England,4,3,33,19
+PREM,2025/26,12,Kingston Park Stadium,,2026-03-27,19:45,Newcastle Red Bulls,England,Exeter Chiefs,England,2,6,14,38
+PREM,2025/26,12,Villa Park,,2026-03-28,13:00,Gloucester Rugby,England,Leicester Tigers,England,3,6,17,36
+PREM,2025/26,12,Principality Stadium,,2026-03-28,15:30,Bristol Bears,England,Harlequins,England,2,2,14,18
+PREM,2025/26,12,Tottenham Hotspur Stadium,,2026-03-28,18:00,Saracens,England,Northampton Saints,England,2,3,17,21
+PREM,2025/26,12,CorpAcq Stadium,,2026-03-29,15:00,Sale Sharks,England,Bath Rugby,England,4,5,26,31
+PREM,2025/26,13,Ashton Gate,,2026-04-17,19:45,Bristol Bears,England,Gloucester Rugby,England,7,2,53,12
+PREM,2025/26,13,Mattioli Woods Welford Road,,2026-04-18,15:00,Leicester Tigers,England,Newcastle Red Bulls,England,10,0,62,3
+PREM,2025/26,13,Sandy Park,,2026-04-18,15:05,Exeter Chiefs,England,Northampton Saints,England,4,5,28,35
+PREM,2025/26,13,The Recreation Ground,,2026-04-18,17:30,Bath Rugby,England,Harlequins,England,8,2,48,15
+PREM,2025/26,13,CorpAcq Stadium,,2026-04-19,15:00,Sale Sharks,England,Saracens,England,3,13,19,85
+PREM,2025/26,14,Kingston Park Stadium,,2026-04-24,19:45,Newcastle Red Bulls,England,Bristol Bears,England,3,8,19,52
+PREM,2025/26,14,Twickenham Stoop,,2026-04-25,15:00,Harlequins,England,Sale Sharks,England,5,8,33,52
+PREM,2025/26,14,StoneX Stadium,,2026-04-25,15:05,Saracens,England,Leicester Tigers,England,3,2,19,15
+PREM,2025/26,14,Cinch Stadium,,2026-04-25,17:30,Northampton Saints,England,Bath Rugby,England,6,6,41,38
+PREM,2025/26,14,Kingsholm,,2026-04-26,15:30,Gloucester Rugby,England,Exeter Chiefs,England,5,5,34,31
+PREM,2025/26,15,Kingsholm,,2026-05-08,19:45,Gloucester Rugby,England,Sale Sharks,England,3,2,21,15
+PREM,2025/26,15,Mattioli Woods Welford Road,,2026-05-09,15:05,Leicester Tigers,England,Northampton Saints,England,6,3,41,17
+PREM,2025/26,15,Ashton Gate,,2026-05-09,17:30,Bristol Bears,England,Saracens,England,4,6,26,41
+PREM,2025/26,15,Kingston Park Stadium,,2026-05-10,15:00,Newcastle Red Bulls,England,Harlequins,England,3,12,17,76
+PREM,2025/26,15,Sandy Park,,2026-05-10,15:30,Exeter Chiefs,England,Bath Rugby,England,4,2,35,12
+PREM,2025/26,16,Cinch Stadium,,2026-05-15,19:45,Northampton Saints,England,Bristol Bears,England,14,5,94,33
+PREM,2025/26,16,The Recreation Ground,,2026-05-16,15:00,Bath Rugby,England,Newcastle Red Bulls,England,11,2,69,12
+PREM,2025/26,16,Twickenham Stoop,,2026-05-16,16:00,Harlequins,England,Exeter Chiefs,England,6,4,41,24
+PREM,2025/26,16,StoneX Stadium,,2026-05-16,18:30,Saracens,England,Gloucester Rugby,England,4,2,30,14
+PREM,2025/26,16,CorpAcq Stadium,,2026-05-17,15:00,Sale Sharks,England,Leicester Tigers,England,5,7,33,47
+PREM,2025/26,17,Ashton Gate,,2026-05-29,19:45,Bristol Bears,England,Bath Rugby,England,3,3,21,19
+PREM,2025/26,17,StoneX Stadium,,2026-05-30,13:00,Saracens,England,Harlequins,England,4,2,26,12
+PREM,2025/26,17,Cinch Stadium,,2026-05-30,15:00,Northampton Saints,England,Gloucester Rugby,England,6,5,36,32
+PREM,2025/26,17,Kingston Park Stadium,,2026-05-30,19:45,Newcastle Red Bulls,England,Sale Sharks,England,7,6,45,42
+PREM,2025/26,17,Mattioli Woods Welford Road,,2026-05-31,15:30,Leicester Tigers,England,Exeter Chiefs,England,3,4,26,35
+PREM,2025/26,18,The Recreation Ground,,2026-06-06,15:15,Bath Rugby,England,Leicester Tigers,England,4,3,24,22
+PREM,2025/26,18,CorpAcq Stadium,,2026-06-06,15:15,Sale Sharks,England,Bristol Bears,England,6,3,38,17
+PREM,2025/26,18,Twickenham Stoop,,2026-06-06,15:15,Harlequins,England,Northampton Saints,England,6,5,38,31
+PREM,2025/26,18,Kingsholm,,2026-06-06,15:15,Gloucester Rugby,England,Newcastle Red Bulls,England,8,3,54,21
+PREM,2025/26,18,Sandy Park,,2026-06-06,15:15,Exeter Chiefs,England,Saracens,England,4,2,32,12
+PREM,2025/26,Semi-Final,Cinch Stadium,,2026-06-12,19:45,Northampton Saints,England,Leicester Tigers,England,7,5,45,31
+PREM,2025/26,Semi-Final,The Recreation Ground,,2026-06-13,15:00,Bath Rugby,England,Exeter Chiefs,England,4,4,26,27
+PREM,2025/26,Final,Twickenham Stadium,,2026-06-20,15:00,Northampton Saints,England,Exeter Chiefs,England,4,3,26,17

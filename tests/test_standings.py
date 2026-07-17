@@ -99,7 +99,7 @@ def test_knockout_rounds_are_excluded_from_league_tables(round_name, ruleset):
     assert by_team["Bravo"]["Pts"] == 0
 
 
-def test_table_ranks_by_points_then_points_difference_not_wins():
+def test_prem_ranks_by_points_then_wins_before_points_difference():
     matches = [
         match(1, "One Win", 2, "Opponent B", 10, 9, 0, 0),
         match(3, "Opponent D", 1, "One Win", 100, 0, 0, 0),
@@ -111,7 +111,88 @@ def test_table_ranks_by_points_then_points_difference_not_wins():
 
     assert next(row for row in table if row["Team"] == "One Win")["Pts"] == 4
     assert next(row for row in table if row["Team"] == "No Wins")["Pts"] == 4
-    assert positions["No Wins"] < positions["One Win"]
+    assert positions["One Win"] < positions["No Wins"]
+
+
+def test_prem_uses_points_for_then_head_to_head_scoring_and_shares_full_ties():
+    points_for = calculate_table(
+        [
+            match(1, "More PF", 3, "A", 20, 10, 0, 0),
+            match(2, "Less PF", 4, "B", 15, 5, 0, 0),
+        ],
+        "prem_2025_26",
+    )
+    assert [row["Team"] for row in points_for if row["Team"] in {"More PF", "Less PF"}] == [
+        "More PF", "Less PF"
+    ]
+
+    # Zulu and Able finish level through total points scored, but Zulu scored
+    # more aggregate match points in their two direct fixtures.
+    head_to_head = calculate_table(
+        [
+            match(1, "Zulu", 3, "C", 20, 10, 0, 0),
+            match(2, "Able", 4, "D", 30, 0, 0, 0),
+            match(1, "Zulu", 2, "Able", 20, 5, 0, 0),
+            match(2, "Able", 1, "Zulu", 15, 10, 0, 0),
+        ],
+        "prem_2025_26",
+    )
+    positions = {row["Team"]: row["Pos"] for row in head_to_head}
+    assert positions["Zulu"] < positions["Able"]
+
+    tied = calculate_table(
+        [match(10, "Zulu Tie", 11, "Able Tie", 12, 12, 0, 0)],
+        "prem_2025_26",
+    )
+    assert tied[0]["Team"] == "Able Tie"  # deterministic display order only
+    assert tied[0]["Pos"] == tied[1]["Pos"]
+
+
+def test_explicit_stage_takes_precedence_and_excludes_prem_knockouts():
+    regular = match(1, "Alpha", 2, "Bravo", 20, 10, 3, 1, "Round 18")
+    knockout = match(2, "Bravo", 1, "Alpha", 50, 0, 7, 0, "Round 19")
+    knockout["stage"] = "Semi Final"
+
+    table = calculate_table([regular, knockout], "prem_2025_26")
+    assert all(row["P"] == 1 for row in table)
+
+
+def prem_double_round_robin():
+    teams = [(team_id, f"Team {team_id:02}") for team_id in range(1, 11)]
+    matches = []
+    for home_id, home_name in teams:
+        for away_id, away_name in teams:
+            if home_id != away_id:
+                home_wins = home_id < away_id
+                matches.append(match(
+                    home_id, home_name, away_id, away_name,
+                    20 if home_wins else 10, 10 if home_wins else 20,
+                    3 if home_wins else 1, 1 if home_wins else 3, "League",
+                ))
+    return matches
+
+
+def test_prem_structure_qualification_and_semi_final_pairings():
+    matches = prem_double_round_robin()
+    result = calculate_competition(matches, "prem_2025_26")
+
+    assert validate_competition(matches, "prem_2025_26") == []
+    assert result["complete"] is True
+    assert len(result["table"]) == 10
+    assert all(row["P"] == 18 for row in result["table"])
+    assert result["qualifiers"] == ("Team 01", "Team 02", "Team 03", "Team 04")
+    assert result["semi_finals"] == (
+        ("Team 01", "Team 04"), ("Team 02", "Team 03")
+    )
+
+
+def test_prem_validation_rejects_an_incomplete_home_and_away_schedule():
+    matches = prem_double_round_robin()[:-1]
+    errors = validate_competition(matches, "prem_2025_26")
+
+    assert "Expected 90 matches, found 89." in errors
+    assert "Each pair of teams must play once at home and once away." in errors
+    assert "Each team must have exactly 18 matches." in errors
 
 
 def test_2025_26_rulesets_have_independent_identifiers_and_currently_same_result():
