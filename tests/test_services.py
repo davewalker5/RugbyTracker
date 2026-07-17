@@ -123,6 +123,77 @@ def test_unreferenced_record_can_be_deleted(service):
     assert service.list_countries() == []
 
 
+def test_ruleset_maintenance_creates_updates_and_protects_references(service):
+    """Maintain declarative rulesets while protecting competition history.
+
+    :param service: Rugby service backed by the test database.
+    :return: None.
+    """
+    values = {
+        "identifier": "example_2028",
+        "label": "Example League (2028)",
+        "team_count": 8,
+        "matches_per_team": 14,
+        "single_round_robin": False,
+        "home_and_away": True,
+        "knockout_stage": False,
+        "playoff_teams": 0,
+        "win_points": 4,
+        "draw_points": 2,
+        "loss_points": 0,
+        "try_bonus_threshold": 4,
+        "try_bonus_points": 1,
+        "losing_bonus_margin": 7,
+        "losing_bonus_points": 1,
+        "grand_slam_bonus_points": 0,
+        "tie_breakers": '["competition_points","wins"]',
+        "excluded_rounds": "[]",
+        "share_equal_positions": True,
+        "champion": True,
+        "grand_slam": False,
+        "triple_crown": False,
+        "wooden_spoon": False,
+        "triple_crown_teams": "[]",
+    }
+    identifier = service.save_ruleset(**values)
+    assert identifier in service.list_rulesets()
+
+    service.save_ruleset(entity_id=identifier, **{**values, "label": "Updated Example"})
+    assert service.list_rulesets()[identifier].label == "Updated Example"
+
+    competition = service.save_competition(
+        name="Example", season="2028", gender="Men", ruleset=identifier
+    )
+    with pytest.raises(ValidationError, match="in use"):
+        service.delete_ruleset(identifier)
+
+    service.delete("competition", competition)
+    service.delete_ruleset(identifier)
+    assert identifier not in service.list_rulesets()
+
+
+def test_ruleset_maintenance_rejects_identifier_changes_and_unknown_tiebreakers(service):
+    """Reject changes that would break identity or require new code.
+
+    :param service: Rugby service backed by the test database.
+    :return: None.
+    """
+    existing = service.list_ruleset_records()[0]
+    with pytest.raises(ValidationError, match="identifier cannot be changed"):
+        service.save_ruleset(
+            entity_id=existing["identifier"], identifier="renamed", label="Renamed",
+            tie_breakers='["competition_points"]', win_points=4, draw_points=2,
+            loss_points=0, try_bonus_threshold=4, try_bonus_points=1,
+            losing_bonus_margin=7, losing_bonus_points=1,
+        )
+    with pytest.raises(ValidationError, match="Unsupported tie breakers"):
+        service.save_ruleset(
+            identifier="bad", label="Bad", tie_breakers='["coin_toss"]',
+            win_points=4, draw_points=2, loss_points=0, try_bonus_threshold=4,
+            try_bonus_points=1, losing_bonus_margin=7, losing_bonus_points=1,
+        )
+
+
 def test_duplicate_country_name_is_rejected(service):
     """Reject case-insensitive duplicate country names with a clear error.
 

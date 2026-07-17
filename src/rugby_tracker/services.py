@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+import json
 from datetime import date, time
 from typing import Any
 
@@ -19,6 +20,7 @@ from rugby_tracker.analysis import (
 )
 from rugby_tracker.standings import (
     RULESETS,
+    SUPPORTED_TIE_BREAKERS,
     calculate_competition,
     reload_rulesets,
     table_to_csv,
@@ -122,6 +124,161 @@ class RugbyService:
         """
         self.rulesets = reload_rulesets(self.repo.connection)
         return self.rulesets
+
+    def list_ruleset_records(self) -> list[dict[str, Any]]:
+        """Return editable ruleset database rows in display order.
+
+        :return: Complete ruleset records with identifiers exposed as row IDs.
+        """
+        rows = self.repo.connection.execute(
+            "SELECT * FROM competition_rulesets ORDER BY label COLLATE NOCASE, identifier"
+        ).fetchall()
+        return [{**dict(row), "id": row["identifier"]} for row in rows]
+
+    def save_ruleset(self, entity_id: str | None = None, **values: Any) -> str:
+        """Create or update a declarative competition ruleset.
+
+        :param entity_id: Existing immutable identifier, or ``None`` to create one.
+        :param values: All supported format, scoring, table, and award fields.
+        :return: The saved stable ruleset identifier.
+        :raises ValidationError: If configuration is invalid or unsupported.
+        """
+        requested_identifier = required_text(values.get("identifier"), "Ruleset identifier")
+        identifier = entity_id or requested_identifier
+        if entity_id and requested_identifier != entity_id:
+            raise ValidationError("A ruleset identifier cannot be changed; create a new version.")
+        duplicate = self.repo.connection.execute(
+            "SELECT 1 FROM competition_rulesets WHERE identifier = ? COLLATE NOCASE "
+            "AND identifier <> ?",
+            (identifier, entity_id or ""),
+        ).fetchone()
+        if duplicate:
+            raise ValidationError("A ruleset with this identifier already exists.")
+
+        tie_breakers = self._ruleset_list(values.get("tie_breakers"), "Tie breakers", True)
+        unsupported = set(tie_breakers) - SUPPORTED_TIE_BREAKERS
+        if unsupported:
+            raise ValidationError(
+                "Unsupported tie breakers: " + ", ".join(sorted(unsupported)) + "."
+            )
+        special_handler = optional_text(values.get("special_handler"))
+        if special_handler:
+            raise ValidationError("Special handlers must be implemented in Python first.")
+        data = {
+            "identifier": identifier,
+            "label": required_text(values.get("label"), "Ruleset label"),
+            "team_count": self._optional_non_negative(values.get("team_count"), "Team count"),
+            "matches_per_team": self._optional_non_negative(
+                values.get("matches_per_team"), "Matches per team"
+            ),
+            "single_round_robin": int(bool(values.get("single_round_robin"))),
+            "home_and_away": int(bool(values.get("home_and_away"))),
+            "knockout_stage": int(bool(values.get("knockout_stage"))),
+            "playoff_teams": non_negative(values.get("playoff_teams", 0), "Play-off teams"),
+            "win_points": non_negative(values.get("win_points"), "Win points"),
+            "draw_points": non_negative(values.get("draw_points"), "Draw points"),
+            "loss_points": non_negative(values.get("loss_points"), "Loss points"),
+            "try_bonus_threshold": non_negative(
+                values.get("try_bonus_threshold"), "Try bonus threshold"
+            ),
+            "try_bonus_points": non_negative(values.get("try_bonus_points"), "Try bonus points"),
+            "losing_bonus_margin": non_negative(
+                values.get("losing_bonus_margin"), "Losing bonus margin"
+            ),
+            "losing_bonus_points": non_negative(
+                values.get("losing_bonus_points"), "Losing bonus points"
+            ),
+            "grand_slam_bonus_points": non_negative(
+                values.get("grand_slam_bonus_points", 0), "Grand Slam bonus points"
+            ),
+            "tie_breakers": json.dumps(tie_breakers, separators=(",", ":")),
+            "excluded_rounds": json.dumps(
+                self._ruleset_list(values.get("excluded_rounds"), "Excluded rounds"),
+                separators=(",", ":"),
+            ),
+            "share_equal_positions": int(bool(values.get("share_equal_positions"))),
+            "champion": int(bool(values.get("champion"))),
+            "grand_slam": int(bool(values.get("grand_slam"))),
+            "triple_crown": int(bool(values.get("triple_crown"))),
+            "wooden_spoon": int(bool(values.get("wooden_spoon"))),
+            "triple_crown_teams": json.dumps(
+                self._ruleset_list(values.get("triple_crown_teams"), "Triple Crown teams"),
+                separators=(",", ":"),
+            ),
+            "special_handler": None,
+        }
+        columns = tuple(data)
+        if entity_id:
+            assignments = ", ".join(f"{column} = ?" for column in columns if column != "identifier")
+            parameters = [data[column] for column in columns if column != "identifier"]
+            cursor = self.repo.connection.execute(
+                f"UPDATE competition_rulesets SET {assignments} WHERE identifier = ?",
+                (*parameters, entity_id),
+            )
+            if cursor.rowcount == 0:
+                raise LookupError(f"No ruleset exists with identifier {entity_id}.")
+        else:
+            placeholders = ", ".join("?" for _ in columns)
+            self.repo.connection.execute(
+                f"INSERT INTO competition_rulesets ({', '.join(columns)}) VALUES ({placeholders})",
+                tuple(data[column] for column in columns),
+            )
+        self.list_rulesets()
+        return identifier
+
+    def delete_ruleset(self, identifier: str) -> None:
+        """Delete an unreferenced ruleset configuration.
+
+        :param identifier: Stable ruleset identifier to remove.
+        :return: None.
+        :raises ValidationError: If a competition currently references the ruleset.
+        """
+        referenced = self.repo.connection.execute(
+            "SELECT 1 FROM competitions WHERE ruleset = ? LIMIT 1", (identifier,)
+        ).fetchone()
+        if referenced:
+            raise ValidationError(
+                "This ruleset is in use and cannot be deleted. Update its competitions first."
+            )
+        cursor = self.repo.connection.execute(
+            "DELETE FROM competition_rulesets WHERE identifier = ?", (identifier,)
+        )
+        if cursor.rowcount == 0:
+            raise LookupError(f"No ruleset exists with identifier {identifier}.")
+        self.list_rulesets()
+
+    @staticmethod
+    def _optional_non_negative(value: Any, label: str) -> int | None:
+        """Validate an optional non-negative integer.
+
+        :param value: Candidate numeric value.
+        :param label: User-facing field label.
+        :return: Validated integer or ``None`` when omitted.
+        """
+        return None if value in (None, "") else non_negative(value, label)
+
+    @staticmethod
+    def _ruleset_list(value: Any, label: str, required: bool = False) -> list[str]:
+        """Validate a JSON string or sequence of non-empty ruleset values.
+
+        :param value: JSON text or an existing sequence.
+        :param label: User-facing field label.
+        :param required: Whether at least one value is mandatory.
+        :return: Normalised string list.
+        :raises ValidationError: If the value is malformed.
+        """
+        try:
+            parsed = json.loads(value or "[]") if isinstance(value, str) else list(value or [])
+        except (json.JSONDecodeError, TypeError) as error:
+            raise ValidationError(f"{label} must be a valid JSON array.") from error
+        if not isinstance(parsed, list):
+            raise ValidationError(f"{label} must be a valid JSON array.")
+        if any(not isinstance(item, str) or not item.strip() for item in parsed):
+            raise ValidationError(f"{label} must contain only non-empty text values.")
+        result = [item.strip() for item in parsed]
+        if required and not result:
+            raise ValidationError(f"{label} must contain at least one value.")
+        return result
 
     def list_countries(self) -> list[dict[str, Any]]:
         """List all standalone country records.
