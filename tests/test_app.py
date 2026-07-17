@@ -88,7 +88,7 @@ def test_all_pages_render_against_empty_database(monkeypatch, tmp_path):
     assert "Competition Summary" not in app.radio[0].options
     for page in (
         "League Table", "Matches", "CSV Import", "CSV Export",
-        "Competitions", "Teams", "Venues", "Referees", "Countries",
+        "Competitions", "Teams", "Venues", "Referees", "Countries", "Rulesets",
     ):
         app.radio[0].set_value(page).run()
         assert not app.exception, page

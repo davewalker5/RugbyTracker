@@ -503,6 +503,139 @@ def countries_page(service: RugbyService, connection: Any) -> None:
     )
 
 
+def rulesets_page(service: RugbyService, connection: Any) -> None:
+    """Render database-backed competition ruleset maintenance.
+
+    :param service: Business service used for ruleset operations.
+    :param connection: Active database connection for commits.
+    :return: None.
+    """
+    records = service.list_ruleset_records()
+
+    def fields(row: dict[str, Any] | None) -> dict[str, Any]:
+        """Render ruleset configuration fields and collect their values.
+
+        :param row: Existing ruleset row, or ``None`` for a new ruleset.
+        :return: Values entered in the ruleset form.
+        """
+        st.caption(
+            "Use a new versioned identifier when regulations change. JSON fields use "
+            'arrays such as ["competition_points", "wins"].'
+        )
+        identity, structure = st.columns(2)
+        with identity:
+            identifier = st.text_input(
+                "Identifier *", value=row["identifier"] if row else "",
+                disabled=row is not None,
+            )
+            label = st.text_input("Label *", value=row["label"] if row else "")
+            team_count = st.number_input(
+                "Team count", min_value=2, step=1,
+                value=row["team_count"] if row and row["team_count"] is not None else None,
+            )
+            matches_per_team = st.number_input(
+                "Matches per team", min_value=1, step=1,
+                value=(
+                    row["matches_per_team"]
+                    if row and row["matches_per_team"] is not None else None
+                ),
+            )
+        with structure:
+            playoff_teams = st.number_input(
+                "Play-off teams", min_value=0, step=1,
+                value=int(row["playoff_teams"]) if row else 0,
+            )
+            single_round_robin = st.checkbox(
+                "Single round robin", value=bool(row["single_round_robin"]) if row else False
+            )
+            home_and_away = st.checkbox(
+                "Home and away", value=bool(row["home_and_away"]) if row else False
+            )
+            knockout_stage = st.checkbox(
+                "Knockout stage", value=bool(row["knockout_stage"]) if row else False
+            )
+
+        st.markdown("**Scoring**")
+        score_columns = st.columns(4)
+        score_fields = (
+            ("win_points", "Win points", 4),
+            ("draw_points", "Draw points", 2),
+            ("loss_points", "Loss points", 0),
+            ("try_bonus_threshold", "Try bonus threshold", 4),
+            ("try_bonus_points", "Try bonus points", 1),
+            ("losing_bonus_margin", "Losing bonus margin", 7),
+            ("losing_bonus_points", "Losing bonus points", 1),
+            ("grand_slam_bonus_points", "Grand Slam bonus points", 0),
+        )
+        scoring: dict[str, Any] = {}
+        for index, (key, label_text, default) in enumerate(score_fields):
+            with score_columns[index % 4]:
+                scoring[key] = st.number_input(
+                    label_text, min_value=0, step=1,
+                    value=int(row[key]) if row else default,
+                )
+
+        table_column, awards_column = st.columns(2)
+        with table_column:
+            tie_breakers = st.text_area(
+                "Tie breakers (JSON) *",
+                value=row["tie_breakers"] if row else '["competition_points"]',
+            )
+            excluded_rounds = st.text_area(
+                "Excluded rounds (JSON)", value=row["excluded_rounds"] if row else "[]"
+            )
+            share_equal_positions = st.checkbox(
+                "Share equal positions",
+                value=bool(row["share_equal_positions"]) if row else False,
+            )
+        with awards_column:
+            champion = st.checkbox("Champion", value=bool(row["champion"]) if row else False)
+            grand_slam = st.checkbox(
+                "Grand Slam", value=bool(row["grand_slam"]) if row else False
+            )
+            triple_crown = st.checkbox(
+                "Triple Crown", value=bool(row["triple_crown"]) if row else False
+            )
+            wooden_spoon = st.checkbox(
+                "Wooden Spoon", value=bool(row["wooden_spoon"]) if row else False
+            )
+            triple_crown_teams = st.text_area(
+                "Triple Crown teams (JSON)",
+                value=row["triple_crown_teams"] if row else "[]",
+            )
+        return {
+            "identifier": identifier,
+            "label": label,
+            "team_count": team_count,
+            "matches_per_team": matches_per_team,
+            "single_round_robin": single_round_robin,
+            "home_and_away": home_and_away,
+            "knockout_stage": knockout_stage,
+            "playoff_teams": playoff_teams,
+            **scoring,
+            "tie_breakers": tie_breakers,
+            "excluded_rounds": excluded_rounds,
+            "share_equal_positions": share_equal_positions,
+            "champion": champion,
+            "grand_slam": grand_slam,
+            "triple_crown": triple_crown,
+            "wooden_spoon": wooden_spoon,
+            "triple_crown_teams": triple_crown_teams,
+            "special_handler": None,
+        }
+
+    _entity_page(
+        "Rulesets", "ruleset", records, fields, service.save_ruleset,
+        service.delete_ruleset,
+        {
+            "identifier": "Identifier", "label": "Label", "team_count": "Teams",
+            "matches_per_team": "Matches/team", "win_points": "Win points",
+            "tie_breakers": "Tie breakers",
+        },
+        connection,
+    )
+
+
 def matches_page(service: RugbyService, connection: Any) -> None:
     """Render the match CRUD page for fixtures and results.
 
@@ -1559,7 +1692,7 @@ def main() -> None:
         "Navigate",
         (
             "Analysis", "League Table", "Matches", "Competitions", "Teams", "Venues", "Referees",
-            "Countries",
+            "Countries", "Rulesets",
             "CSV Import", "CSV Export",
         ),
         horizontal=True,
@@ -1580,6 +1713,7 @@ def main() -> None:
             "Venues": lambda: venues_page(service, connection),
             "Referees": lambda: referees_page(service, connection),
             "Countries": lambda: countries_page(service, connection),
+            "Rulesets": lambda: rulesets_page(service, connection),
         }
         pages[page]()
     finally:
