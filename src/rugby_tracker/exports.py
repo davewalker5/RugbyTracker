@@ -7,15 +7,19 @@ import io
 import sqlite3
 from typing import Any, Callable
 
+from rugby_tracker.imports import RULESET_HEADERS
 from rugby_tracker.services import RugbyService
 
 
-EXPORT_TYPES = ("Countries", "Venues", "Teams", "Competitions", "Referees", "Matches")
+EXPORT_TYPES = (
+    "Countries", "Venues", "Teams", "Rulesets", "Competitions", "Referees", "Matches"
+)
 
 EXPORT_HEADERS = {
     "Countries": ("name",),
     "Venues": ("name", "town_city", "country"),
     "Teams": ("name", "country", "gender", "home_venue"),
+    "Rulesets": RULESET_HEADERS,
     "Competitions": ("name", "season", "gender", "ruleset"),
     "Referees": ("name",),
     "Matches": (
@@ -54,6 +58,7 @@ class CsvExportService:
             "Countries": self._country_rows,
             "Venues": self._venue_rows,
             "Teams": self._team_rows,
+            "Rulesets": self._ruleset_rows,
             "Competitions": self._competition_rows,
             "Referees": self._referee_rows,
             "Matches": self._match_rows,
@@ -152,6 +157,27 @@ class CsvExportService:
             for row in self.rugby.list_competitions()
             if competition_id is None or int(row["id"]) == competition_id
         ]
+
+    def _ruleset_rows(self, competition_id: int | None) -> list[dict[str, Any]]:
+        """Build ruleset rows, optionally limited to one competition's dependency.
+
+        :param competition_id: Optional competition whose ruleset should be exported.
+        :return: Complete database ruleset rows ready for CSV writing.
+        """
+        if competition_id is None:
+            rows = self.connection.execute(
+                "SELECT * FROM competition_rulesets ORDER BY identifier COLLATE NOCASE"
+            ).fetchall()
+        else:
+            rows = self.connection.execute(
+                """
+                SELECT r.* FROM competition_rulesets r
+                JOIN competitions c ON c.ruleset = r.identifier
+                WHERE c.id = ?
+                """,
+                (competition_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def _referee_rows(self, competition_id: int | None) -> list[dict[str, Any]]:
         """Build referee rows in import-column order.
