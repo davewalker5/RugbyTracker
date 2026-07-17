@@ -17,7 +17,12 @@ from rugby_tracker.analysis import (
     build_team_form,
     build_team_summary,
 )
-from rugby_tracker.standings import RULESETS, calculate_competition, table_to_csv
+from rugby_tracker.standings import (
+    RULESETS,
+    calculate_competition,
+    reload_rulesets,
+    table_to_csv,
+)
 
 
 GENDERS = ("Men", "Women")
@@ -108,6 +113,15 @@ class RugbyService:
         :return: None.
         """
         self.repo = RugbyRepository(connection)
+        self.rulesets = reload_rulesets(connection)
+
+    def list_rulesets(self) -> dict[str, Any]:
+        """Return the current database-backed ruleset registry.
+
+        :return: Rulesets keyed by their stable identifiers.
+        """
+        self.rulesets = reload_rulesets(self.repo.connection)
+        return self.rulesets
 
     def list_countries(self) -> list[dict[str, Any]]:
         """List all standalone country records.
@@ -340,6 +354,7 @@ class RugbyService:
         :return: Competition details and calculated, ordered table rows.
         :raises ValidationError: If the competition is missing or has no ruleset.
         """
+        rulesets = self.list_rulesets()
         competition = self.repo.competitions.get(competition_id)
         if competition is None:
             raise ValidationError("Select a valid competition.")
@@ -354,7 +369,7 @@ class RugbyService:
             raise ValidationError(str(error)) from error
         return {
             "competition": competition,
-            "ruleset": RULESETS[str(ruleset)],
+            "ruleset": rulesets[str(ruleset)],
             **calculation,
         }
 

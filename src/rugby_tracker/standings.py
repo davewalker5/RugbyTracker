@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import csv
 import io
+import json
+import sqlite3
 from dataclasses import dataclass
 from typing import Any
 
@@ -107,96 +109,88 @@ class Ruleset:
         return self.league_table.excluded_rounds
 
 
-_CLUB_SCORING = ScoringRules(4, 2, 0, 4, 1, 7, 1)
-_CLUB_TABLE = LeagueTableRules(
-    tie_breakers=("competition_points", "points_difference"),
-    excluded_rounds=frozenset({"quarter-final", "semi-final", "final"}),
-)
-_HOME_NATIONS = frozenset({"England", "Ireland", "Scotland", "Wales"})
-_INTERNATIONAL_SCORING = ScoringRules(4, 2, 0, 4, 1, 7, 1)
-_INTERNATIONAL_TABLE = LeagueTableRules(
-    ("competition_points", "points_difference", "tries_for")
-)
+# Runtime cache. Application services refresh it from ``competition_rulesets``.
+RULESETS: dict[str, Ruleset] = {}
+
+SUPPORTED_TIE_BREAKERS = frozenset({
+    "competition_points", "wins", "points_difference", "points_for",
+    "tries_for", "head_to_head_points",
+})
 
 
-RULESETS = {
-    "prem_2025_26": Ruleset(
-        "prem_2025_26",
-        "Premiership Rugby (2025/26)",
-        CompetitionFormat(
-            team_count=10,
-            matches_per_team=18,
-            home_and_away=True,
-            knockout_stage=True,
-            playoff_teams=4,
-        ),
-        _CLUB_SCORING,
-        LeagueTableRules(
-            (
-                "competition_points", "wins", "points_difference",
-                "points_for", "head_to_head_points",
+def load_rulesets(connection: sqlite3.Connection) -> dict[str, Ruleset]:
+    """Load all declarative competition rulesets from the database.
+
+    :param connection: Open application database connection.
+    :return: Rulesets keyed by their stable, versioned identifiers.
+    :raises ValueError: If a row requests an unsupported calculation capability.
+    """
+    rows = connection.execute(
+        "SELECT * FROM competition_rulesets ORDER BY identifier COLLATE NOCASE"
+    ).fetchall()
+    loaded: dict[str, Ruleset] = {}
+    for raw in rows:
+        row = dict(raw)
+        tie_breakers = tuple(json.loads(str(row["tie_breakers"])))
+        unsupported = set(tie_breakers) - SUPPORTED_TIE_BREAKERS
+        if unsupported:
+            names = ", ".join(sorted(unsupported))
+            raise ValueError(f"Ruleset {row['identifier']} uses unsupported tie-breakers: {names}.")
+        if row.get("special_handler"):
+            raise ValueError(
+                f"Ruleset {row['identifier']} requires unsupported special handler "
+                f"{row['special_handler']}."
+            )
+        identifier = str(row["identifier"])
+        loaded[identifier] = Ruleset(
+            identifier=identifier,
+            label=str(row["label"]),
+            competition=CompetitionFormat(
+                team_count=row["team_count"],
+                matches_per_team=row["matches_per_team"],
+                single_round_robin=bool(row["single_round_robin"]),
+                home_and_away=bool(row["home_and_away"]),
+                knockout_stage=bool(row["knockout_stage"]),
+                playoff_teams=int(row["playoff_teams"]),
             ),
-            excluded_rounds=frozenset({"quarter-final", "semi-final", "final"}),
-            share_equal_positions=True,
-        ),
-    ),
-    "pwr_2025_26": Ruleset(
-        "pwr_2025_26",
-        "Premiership Women's Rugby (2025/26)",
-        CompetitionFormat(),
-        _CLUB_SCORING,
-        _CLUB_TABLE,
-    ),
-    "m6n": Ruleset(
-        "m6n",
-        "Men's Six Nations",
-        CompetitionFormat(6, 5, single_round_robin=True),
-        ScoringRules(4, 2, 0, 4, 1, 7, 1, 3),
-        LeagueTableRules(
-            ("competition_points", "points_difference", "tries_for"),
-            share_equal_positions=True,
-        ),
-        AwardRules(True, True, True, True, _HOME_NATIONS),
-    ),
-    "w6n": Ruleset(
-        "w6n",
-        "Women's Six Nations",
-        CompetitionFormat(6, 5, single_round_robin=True),
-        ScoringRules(4, 2, 0, 4, 1, 7, 1, 3),
-        LeagueTableRules(
-            ("competition_points", "points_difference", "tries_for"),
-            share_equal_positions=True,
-        ),
-        AwardRules(True, True, True, True, _HOME_NATIONS),
-    ),
-    "wxv_global_2026": Ruleset(
-        "wxv_global_2026",
-        "WXV Global Series (2026)",
-        CompetitionFormat(team_count=12),
-        _INTERNATIONAL_SCORING,
-        _INTERNATIONAL_TABLE,
-        AwardRules(champion=True),
-    ),
-    "wxv_challenger_2026": Ruleset(
-        "wxv_challenger_2026",
-        "WXV Global Series Challenger (2026)",
-        CompetitionFormat(team_count=6, matches_per_team=3),
-        _INTERNATIONAL_SCORING,
-        _INTERNATIONAL_TABLE,
-        AwardRules(champion=True),
-    ),
-    "nations_2026": Ruleset(
-        "nations_2026",
-        "Nations Championship Series (2026)",
-        # Each geographic series contains three cross-hemisphere fixtures per team.
-        CompetitionFormat(team_count=12, matches_per_team=3),
-        _INTERNATIONAL_SCORING,
-        LeagueTableRules(
-            ("competition_points", "wins", "points_difference", "tries_for")
-        ),
-        AwardRules(champion=True),
-    ),
-}
+            scoring=ScoringRules(
+                win_points=int(row["win_points"]),
+                draw_points=int(row["draw_points"]),
+                loss_points=int(row["loss_points"]),
+                try_bonus_threshold=int(row["try_bonus_threshold"]),
+                try_bonus_points=int(row["try_bonus_points"]),
+                losing_bonus_margin=int(row["losing_bonus_margin"]),
+                losing_bonus_points=int(row["losing_bonus_points"]),
+                grand_slam_bonus_points=int(row["grand_slam_bonus_points"]),
+            ),
+            league_table=LeagueTableRules(
+                tie_breakers=tie_breakers,
+                excluded_rounds=frozenset(json.loads(str(row["excluded_rounds"]))),
+                share_equal_positions=bool(row["share_equal_positions"]),
+            ),
+            awards=AwardRules(
+                champion=bool(row["champion"]),
+                grand_slam=bool(row["grand_slam"]),
+                triple_crown=bool(row["triple_crown"]),
+                wooden_spoon=bool(row["wooden_spoon"]),
+                triple_crown_teams=frozenset(
+                    json.loads(str(row["triple_crown_teams"]))
+                ),
+            ),
+        )
+    return loaded
+
+
+def reload_rulesets(connection: sqlite3.Connection) -> dict[str, Ruleset]:
+    """Refresh the process-wide compatibility registry from the database.
+
+    :param connection: Open application database connection.
+    :return: The refreshed ruleset registry.
+    """
+    loaded = load_rulesets(connection)
+    RULESETS.clear()
+    RULESETS.update(loaded)
+    return RULESETS
 
 
 @dataclass
