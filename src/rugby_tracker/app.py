@@ -29,6 +29,7 @@ from rugby_tracker.analysis import (
     team_form_filename,
     team_form_location_record,
 )
+from rugby_tracker.config import is_read_only_domain
 from rugby_tracker.database import apply_migrations, connect
 from rugby_tracker.exports import EXPORT_TYPES, CsvExportService
 from rugby_tracker.imports import IMPORT_TYPES, CsvImportService, ImportReport
@@ -40,6 +41,24 @@ LOSS_BACKGROUND = "#f4cccc"
 DRAW_BACKGROUND = "#fff2cc"
 MEN_AND_WOMEN = "Men and Women"
 GENDER_FILTERS = (MEN_AND_WOMEN, *GENDERS)
+READ_ONLY_MESSAGE = (
+    "This deployment is demonstration read-only deployment. "
+    "Data maintenance and imports are disabled."
+)
+
+
+def _is_read_only() -> bool:
+    """Return whether the current request belongs to a read-only deployment.
+
+    :return: ``True`` when the request host matches a configured read-only domain.
+    """
+    try:
+        headers = st.context.headers
+        forwarded_host = headers.get("X-Forwarded-Host", "").split(",", 1)[0]
+        return is_read_only_domain(forwarded_host or headers.get("Host"))
+    except Exception:
+        # Streamlit has no request context in some tests and direct Python calls.
+        return False
 
 
 def _clear_analysis_season() -> None:
@@ -243,12 +262,15 @@ def _form_actions(can_delete: bool) -> tuple[bool, bool, bool]:
     :param can_delete: Whether an existing record is selected and may be deleted.
     :return: Flags indicating whether Save, Delete, or Clear was submitted.
     """
+    read_only = _is_read_only()
     save_column, delete_column, clear_column = st.columns(3)
     with save_column:
-        save_clicked = st.form_submit_button("Save", type="primary", width="stretch")
+        save_clicked = st.form_submit_button(
+            "Save", type="primary", disabled=read_only, width="stretch"
+        )
     with delete_column:
         delete_clicked = st.form_submit_button(
-            "Delete", disabled=not can_delete, width="stretch"
+            "Delete", disabled=read_only or not can_delete, width="stretch"
         )
     with clear_column:
         clear_clicked = st.form_submit_button("Clear", width="stretch")
@@ -1567,7 +1589,9 @@ def import_page(connection: Any) -> None:
             "or Final. Referee, round, kick-off, and all result fields may be blank."
         )
     uploaded = st.file_uploader("CSV file", type=("csv",), key=f"csv_{entity_type}")
-    if st.button("Import CSV", type="primary", disabled=uploaded is None):
+    if st.button(
+        "Import CSV", type="primary", disabled=_is_read_only() or uploaded is None
+    ):
         assert uploaded is not None
         report = importer.import_csv(entity_type, uploaded.getvalue())
         connection.commit()
@@ -1664,6 +1688,8 @@ def main() -> None:
     st.set_page_config(page_title="Rugby Tracker", page_icon="🏉", layout="wide")
     apply_migrations()
     st.title("🏉 Rugby Tracker")
+    if _is_read_only():
+        st.info(READ_ONLY_MESSAGE)
     st.markdown(
         """
         <style>
