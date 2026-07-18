@@ -5,8 +5,30 @@ import sqlite3
 import pytest
 from yoyo import get_backend, read_migrations
 
-from rugby_tracker.config import PROJECT_ROOT, database_path, migrations_path
+from rugby_tracker.config import (
+    PROJECT_ROOT,
+    database_path,
+    is_read_only_domain,
+    migrations_path,
+    read_only_domains,
+)
 from rugby_tracker.database import apply_migrations, connect
+
+
+def test_read_only_domains_default_and_environment_override(monkeypatch) -> None:
+    """Read-only domains have a safe default and remain easy to configure."""
+    monkeypatch.delenv("RUGBY_TRACKER_READ_ONLY_DOMAINS", raising=False)
+    assert read_only_domains() == ("streamlit.io",)
+    assert is_read_only_domain("streamlit.io")
+    assert is_read_only_domain("rugby-tracker.streamlit.io:443")
+    assert not is_read_only_domain("notstreamlit.io")
+
+    monkeypatch.setenv(
+        "RUGBY_TRACKER_READ_ONLY_DOMAINS", " Demo.Example.com, preview.example.org "
+    )
+    assert read_only_domains() == ("demo.example.com", "preview.example.org")
+    assert is_read_only_domain("app.demo.example.com")
+    assert not is_read_only_domain("streamlit.io")
 
 
 def test_database_is_empty_after_first_migration(connection):
