@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_READ_ONLY_DOMAINS = ("streamlit.io",)
+DEFAULT_READ_ONLY_DOMAINS = ("streamlit.app",)
 
 
 def project_root() -> Path:
