@@ -27,17 +27,17 @@ def test_application_version_comes_from_project_metadata() -> None:
 def test_read_only_domains_default_and_environment_override(monkeypatch) -> None:
     """Read-only domains have a safe default and remain easy to configure."""
     monkeypatch.delenv("RUGBY_TRACKER_READ_ONLY_DOMAINS", raising=False)
-    assert read_only_domains() == ("streamlit.io",)
-    assert is_read_only_domain("streamlit.io")
-    assert is_read_only_domain("rugby-tracker.streamlit.io:443")
-    assert not is_read_only_domain("notstreamlit.io")
+    assert read_only_domains() == ("streamlit.app",)
+    assert is_read_only_domain("streamlit.app")
+    assert is_read_only_domain("rugby-tracker.streamlit.app:443")
+    assert not is_read_only_domain("notstreamlit.app")
 
     monkeypatch.setenv(
         "RUGBY_TRACKER_READ_ONLY_DOMAINS", " Demo.Example.com, preview.example.org "
     )
     assert read_only_domains() == ("demo.example.com", "preview.example.org")
     assert is_read_only_domain("app.demo.example.com")
-    assert not is_read_only_domain("streamlit.io")
+    assert not is_read_only_domain("streamlit.app")
 
 
 def test_database_is_empty_after_first_migration(connection):

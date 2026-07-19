@@ -214,9 +214,9 @@ CSV export complements the integrated analysis reports by making the same compet
 
 ## Read-only deployments
 
-Deployments served from _streamlit.io_ or any of its subdomains automatically run in demonstration read-only mode. Save, delete, and CSV import actions are disabled, while analysis and export features remain available.
+Deployments served from _streamlit.app_ or any of its subdomains automatically run in demonstration read-only mode. Save, delete, and CSV import actions are disabled, while analysis and export features remain available.
 
-Set _RUGBY_TRACKER_READ_ONLY_DOMAINS_ to a comma-separated list to replace the default, for example _streamlit.io,demo.example.com_.
+Set _RUGBY_TRACKER_READ_ONLY_DOMAINS_ to a comma-separated list to replace the default, for example _streamlit.app,demo.example.com_.
 
 ---
 
