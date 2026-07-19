@@ -7,12 +7,21 @@ from yoyo import get_backend, read_migrations
 
 from rugby_tracker.config import (
     PROJECT_ROOT,
+    application_version,
     database_path,
     is_read_only_domain,
     migrations_path,
     read_only_domains,
 )
 from rugby_tracker.database import apply_migrations, connect
+
+
+def test_application_version_comes_from_project_metadata() -> None:
+    """Display the same application version declared by the package metadata.
+
+    :return: None.
+    """
+    assert application_version() == "1.10.0"
 
 
 def test_read_only_domains_default_and_environment_override(monkeypatch) -> None:

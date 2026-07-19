@@ -29,7 +29,7 @@ from rugby_tracker.analysis import (
     team_form_filename,
     team_form_location_record,
 )
-from rugby_tracker.config import is_read_only_domain
+from rugby_tracker.config import application_version, is_read_only_domain
 from rugby_tracker.database import apply_migrations, connect
 from rugby_tracker.exports import EXPORT_TYPES, CsvExportService
 from rugby_tracker.imports import IMPORT_TYPES, CsvImportService, ImportReport
@@ -1714,9 +1714,10 @@ def main() -> None:
 
     :return: None.
     """
-    st.set_page_config(page_title="Rugby Tracker", page_icon="🏉", layout="wide")
+    title = f"Rugby Tracker v{application_version()}"
+    st.set_page_config(page_title=title, page_icon="🏉", layout="wide")
     apply_migrations()
-    st.title("🏉 Rugby Tracker")
+    st.title(f"🏉 {title}")
     if _is_read_only():
         st.info(READ_ONLY_MESSAGE)
     st.markdown(
