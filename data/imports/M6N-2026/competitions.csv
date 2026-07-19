@@ -1,2 +1,2 @@
-name,season,gender,ruleset
-M6N,2026,Men,m6n
+name,season,gender,ruleset,hemisphere_aware
+M6N,2026,Men,m6n,false

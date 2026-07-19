@@ -3,11 +3,22 @@
 from __future__ import annotations
 
 import os
+import tomllib
 from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_READ_ONLY_DOMAINS = ("streamlit.app",)
+
+
+def application_version() -> str:
+    """Return the application version declared in ``pyproject.toml``.
+
+    :return: Project version used in application branding.
+    """
+    with (PROJECT_ROOT / "pyproject.toml").open("rb") as project_file:
+        project = tomllib.load(project_file)
+    return str(project["project"]["version"])
 
 
 def project_root() -> Path:

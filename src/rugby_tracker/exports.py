@@ -16,11 +16,11 @@ EXPORT_TYPES = (
 )
 
 EXPORT_HEADERS = {
-    "Countries": ("name",),
+    "Countries": ("name", "hemisphere"),
     "Venues": ("name", "town_city", "country"),
     "Teams": ("name", "country", "gender", "home_venue"),
     "Rulesets": RULESET_HEADERS,
-    "Competitions": ("name", "season", "gender", "ruleset"),
+    "Competitions": ("name", "season", "gender", "ruleset", "hemisphere_aware"),
     "Referees": ("name",),
     "Matches": (
         "competition", "season", "round", "venue", "referee", "date", "kickoff_time",
@@ -153,6 +153,7 @@ class CsvExportService:
                 "season": row["season"],
                 "gender": row["gender"],
                 "ruleset": row["ruleset"] or "",
+                "hemisphere_aware": "true" if row["hemisphere_aware"] else "false",
             }
             for row in self.rugby.list_competitions()
             if competition_id is None or int(row["id"]) == competition_id

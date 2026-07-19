@@ -28,6 +28,7 @@ from rugby_tracker.standings import (
 
 
 GENDERS = ("Men", "Women")
+HEMISPHERES = ("Southern", "Northern")
 
 
 class ValidationError(ValueError):
@@ -68,6 +69,22 @@ def valid_gender(value: Any) -> str:
     if value not in GENDERS:
         raise ValidationError("Category must be Men or Women.")
     return str(value)
+
+
+def valid_hemisphere(value: Any) -> str | None:
+    """Validate and canonicalise an optional country hemisphere.
+
+    :param value: Candidate hemisphere supplied by the editor or an import.
+    :return: Canonical hemisphere, or ``None`` when no value is supplied.
+    :raises ValidationError: If the value is not Southern, Northern, or blank.
+    """
+    candidate = optional_text(value)
+    if candidate is None:
+        return None
+    for hemisphere in HEMISPHERES:
+        if candidate.casefold() == hemisphere.casefold():
+            return hemisphere
+    raise ValidationError("Hemisphere must be Southern, Northern, or blank.")
 
 
 def non_negative(value: Any, label: str) -> int:
@@ -291,7 +308,7 @@ class RugbyService:
         """Create or update a standalone country record.
 
         :param entity_id: Existing country identifier, or ``None`` to create one.
-        :param values: Country fields including the mandatory unique name.
+        :param values: Country fields including the mandatory unique name and optional hemisphere.
         :return: The saved country's identifier.
         :raises ValidationError: If another country already uses the name.
         """
@@ -308,7 +325,7 @@ class RugbyService:
         return self._save(
             self.repo.countries,
             entity_id,
-            {"name": name},
+            {"name": name, "hemisphere": valid_hemisphere(values.get("hemisphere"))},
         )
 
     def list_venues(self) -> list[dict[str, Any]]:
@@ -386,7 +403,7 @@ class RugbyService:
         """Create or update a competition after validating its fields.
 
         :param entity_id: Existing competition identifier, or ``None`` to create one.
-        :param values: Competition fields including name, season, and category.
+        :param values: Competition fields including name, season, category, and hemisphere flag.
         :return: The saved competition's identifier.
         """
         data = {
@@ -394,6 +411,7 @@ class RugbyService:
             "season": required_text(values.get("season"), "Season"),
             "gender": valid_gender(values.get("gender")),
             "ruleset": valid_ruleset(values.get("ruleset")),
+            "hemisphere_aware": int(bool(values.get("hemisphere_aware", False))),
         }
         return self._save(self.repo.competitions, entity_id, data)
 
@@ -504,10 +522,13 @@ class RugbyService:
                 f"This {entity} is in use and cannot be deleted. Update or delete its related records first."
             ) from error
 
-    def league_table(self, competition_id: int) -> dict[str, Any]:
+    def league_table(
+        self, competition_id: int, hemisphere: str | None = None
+    ) -> dict[str, Any]:
         """Calculate the current table for a competition.
 
         :param competition_id: Competition identifier to calculate.
+        :param hemisphere: Optional Northern or Southern team filter.
         :return: Competition details and calculated, ordered table rows.
         :raises ValidationError: If the competition is missing or has no ruleset.
         """
@@ -518,25 +539,48 @@ class RugbyService:
         ruleset = competition.get("ruleset")
         if not ruleset:
             raise ValidationError("Select a league-table ruleset for this competition first.")
+        selected_hemisphere = valid_hemisphere(hemisphere)
+        if selected_hemisphere and not competition.get("hemisphere_aware"):
+            raise ValidationError("This competition is not hemisphere aware.")
         try:
             calculation = calculate_competition(
                 self.repo.list_matches(competition_id), str(ruleset)
             )
         except ValueError as error:
             raise ValidationError(str(error)) from error
+        if selected_hemisphere:
+            countries = {
+                row["name"]: row["hemisphere"] for row in self.list_countries()
+            }
+            filtered = [
+                row for row in calculation["table"]
+                if countries.get(row["Country"]) == selected_hemisphere
+            ]
+            previous_position: int | None = None
+            position = 0
+            for index, row in enumerate(filtered, start=1):
+                original_position = int(row["Pos"])
+                if original_position != previous_position:
+                    position = index
+                row["Pos"] = position
+                previous_position = original_position
+            calculation["table"] = filtered
         return {
             "competition": competition,
             "ruleset": rulesets[str(ruleset)],
             **calculation,
         }
 
-    def league_table_csv(self, competition_id: int) -> str:
+    def league_table_csv(
+        self, competition_id: int, hemisphere: str | None = None
+    ) -> str:
         """Export a freshly calculated competition table as CSV text.
 
         :param competition_id: Competition identifier to calculate and export.
+        :param hemisphere: Optional Northern or Southern team filter.
         :return: CSV text containing the current league table.
         """
-        return table_to_csv(self.league_table(competition_id)["table"])
+        return table_to_csv(self.league_table(competition_id, hemisphere)["table"])
 
     def team_summary(self, competition_id: int, team_id: int) -> TeamSummaryReport:
         """Calculate a team summary for one competition record.

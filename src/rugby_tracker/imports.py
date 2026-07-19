@@ -18,6 +18,7 @@ from rugby_tracker.services import (
     optional_text,
     required_text,
     valid_ruleset,
+    valid_hemisphere,
 )
 from rugby_tracker.standings import SUPPORTED_TIE_BREAKERS
 
@@ -36,11 +37,11 @@ IMPORT_TYPES = (
     "Countries", "Venues", "Teams", "Rulesets", "Competitions", "Referees", "Matches"
 )
 TEMPLATE_HEADERS = {
-    "Countries": ("name",),
+    "Countries": ("name", "hemisphere"),
     "Venues": ("name", "town_city", "country"),
     "Teams": ("name", "country", "gender", "home_venue"),
     "Rulesets": RULESET_HEADERS,
-    "Competitions": ("name", "season", "gender", "ruleset"),
+    "Competitions": ("name", "season", "gender", "ruleset", "hemisphere_aware"),
     "Referees": ("name",),
     "Matches": (
         "competition", "season", "round", "venue", "referee", "date", "kickoff_time",
@@ -284,7 +285,8 @@ class CsvImportService:
         """
         messages: list[str] = []
         name = self._value(lambda: required_text(row.get("name"), "Country name"), messages)
-        return (None, messages) if messages else ({"name": name}, messages)
+        hemisphere = self._value(lambda: valid_hemisphere(row.get("hemisphere")), messages)
+        return (None, messages) if messages else ({"name": name, "hemisphere": hemisphere}, messages)
 
     def _validate_venue(self, row: dict[str, str]) -> tuple[dict[str, Any] | None, list[str]]:
         """Validate one venue import row.
@@ -316,6 +318,9 @@ class CsvImportService:
         season = self._value(lambda: required_text(row.get("season"), "Season"), messages)
         gender = self._value(lambda: self._gender(row.get("gender")), messages)
         ruleset = self._value(lambda: valid_ruleset(row.get("ruleset")), messages)
+        hemisphere_aware = self._value(
+            lambda: self._boolean(row.get("hemisphere_aware"), "Hemisphere aware"), messages
+        )
         if messages:
             return None, messages
         return {
@@ -323,6 +328,7 @@ class CsvImportService:
             "season": season,
             "gender": gender,
             "ruleset": ruleset,
+            "hemisphere_aware": hemisphere_aware,
         }, messages
 
     def _validate_ruleset(

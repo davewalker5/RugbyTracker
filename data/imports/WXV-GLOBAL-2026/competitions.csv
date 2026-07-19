@@ -1,2 +1,2 @@
-name,season,gender,ruleset
-WXV Global Series,2026,Women,wxv_global_2026
+name,season,gender,ruleset,hemisphere_aware
+WXV Global Series,2026,Women,wxv_global_2026,false

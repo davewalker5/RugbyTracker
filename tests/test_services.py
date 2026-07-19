@@ -205,6 +205,25 @@ def test_duplicate_country_name_is_rejected(service):
         service.save_country(name="ENGLAND")
 
 
+def test_competition_can_be_marked_hemisphere_aware(service):
+    competition = service.save_competition(
+        name="Global League", season="2027", gender="Women", hemisphere_aware=True
+    )
+
+    saved = next(row for row in service.list_competitions() if row["id"] == competition)
+    assert saved["hemisphere_aware"] == 1
+
+
+def test_country_hemisphere_is_optional_and_validated(service):
+    england = service.save_country(name="England", hemisphere="northern")
+    france = service.save_country(name="France", hemisphere="")
+
+    assert service.repo.countries.get(england)["hemisphere"] == "Northern"
+    assert service.repo.countries.get(france)["hemisphere"] is None
+    with pytest.raises(ValidationError, match="Southern, Northern, or blank"):
+        service.save_country(name="Invalid", hemisphere="Eastern")
+
+
 @pytest.mark.parametrize("round_name", ("1", "Quarter-Final", "Semi-Final", "Final"))
 def test_match_round_supports_numbers_and_knockout_names(service, core_records, round_name):
     service.save_match(

@@ -29,11 +29,11 @@ from rugby_tracker.analysis import (
     team_form_filename,
     team_form_location_record,
 )
-from rugby_tracker.config import is_read_only_domain
+from rugby_tracker.config import application_version, is_read_only_domain
 from rugby_tracker.database import apply_migrations, connect
 from rugby_tracker.exports import EXPORT_TYPES, CsvExportService
 from rugby_tracker.imports import IMPORT_TYPES, CsvImportService, ImportReport
-from rugby_tracker.services import GENDERS, RugbyService, ValidationError
+from rugby_tracker.services import GENDERS, HEMISPHERES, RugbyService, ValidationError
 
 
 WIN_BACKGROUND = "#d9ead3"
@@ -464,19 +464,26 @@ def competitions_page(service: RugbyService, connection: Any) -> None:
                 format_func=lambda value: "No league table" if value == "" else rulesets[value].label,
                 placeholder="Select a league-table ruleset (optional)",
             ),
+            "hemisphere_aware": st.checkbox(
+                "Hemisphere aware",
+                value=bool(row["hemisphere_aware"]) if row else False,
+                help="Marks competitions that have separate northern and southern tables",
+            ),
         }
 
     display_rows = [
         {
             **row,
             "ruleset_label": rulesets[row["ruleset"]].label if row.get("ruleset") in rulesets else "—",
+            "hemisphere_aware_label": "Yes" if row.get("hemisphere_aware") else "No",
         }
         for row in records
     ]
     _entity_page("Competitions", "competition", display_rows,
                  fields, service.save_competition,
                  lambda entity_id: service.delete("competition", entity_id),
-                 {"name": "Name", "season": "Season", "gender": "Category", "ruleset_label": "Ruleset"},
+                 {"name": "Name", "season": "Season", "gender": "Category",
+                  "ruleset_label": "Ruleset", "hemisphere_aware_label": "Hemisphere aware"},
                  connection, gender_filter_key="competitions_gender_filter")
 
 
@@ -516,11 +523,22 @@ def countries_page(service: RugbyService, connection: Any) -> None:
         :param row: Existing country row, or ``None`` for a new country.
         :return: Values entered in the country form.
         """
-        return {"name": st.text_input("Name *", value=row["name"] if row else "")}
+        hemisphere_options = (None, *HEMISPHERES)
+        current = row.get("hemisphere") if row else None
+        return {
+            "name": st.text_input("Name *", value=row["name"] if row else ""),
+            "hemisphere": st.selectbox(
+                "Hemisphere",
+                hemisphere_options,
+                index=hemisphere_options.index(current),
+                format_func=lambda value: "Not set" if value is None else value,
+            ),
+        }
 
     _entity_page(
         "Countries", "country", records, fields, service.save_country,
-        lambda entity_id: service.delete("country", entity_id), {"name": "Name"},
+        lambda entity_id: service.delete("country", entity_id),
+        {"name": "Name", "hemisphere": "Hemisphere"},
         connection,
     )
 
@@ -1487,8 +1505,19 @@ def league_table_page(service: RugbyService) -> None:
     if competition_id is None:
         st.info("Select a competition to calculate its league table.")
         return
+    selected_competition = next(
+        row for row in competitions if int(row["id"]) == int(competition_id)
+    )
+    hemisphere = None
+    if selected_competition.get("hemisphere_aware"):
+        hemisphere_filter = st.selectbox(
+            "Hemisphere",
+            ("Both hemispheres", "Northern", "Southern"),
+            key="league_hemisphere_filter",
+        )
+        hemisphere = None if hemisphere_filter == "Both hemispheres" else hemisphere_filter
     try:
-        result = service.league_table(int(competition_id))
+        result = service.league_table(int(competition_id), hemisphere)
     except ValidationError as error:
         st.warning(str(error))
         return
@@ -1515,7 +1544,7 @@ def league_table_page(service: RugbyService) -> None:
     filename_season = str(competition["season"]).replace("/", "-")
     st.download_button(
         "Download league table CSV",
-        service.league_table_csv(int(competition_id)),
+        service.league_table_csv(int(competition_id), hemisphere),
         file_name=f"{filename_name}_{filename_season}_table.csv",
         mime="text/csv",
         disabled=not result["table"],
@@ -1685,9 +1714,10 @@ def main() -> None:
 
     :return: None.
     """
-    st.set_page_config(page_title="Rugby Tracker", page_icon="🏉", layout="wide")
+    title = f"Rugby Tracker v{application_version()}"
+    st.set_page_config(page_title=title, page_icon="🏉", layout="wide")
     apply_migrations()
-    st.title("🏉 Rugby Tracker")
+    st.title(f"🏉 {title}")
     if _is_read_only():
         st.info(READ_ONLY_MESSAGE)
     st.markdown(

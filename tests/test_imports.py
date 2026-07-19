@@ -91,6 +91,19 @@ def test_reference_imports_are_case_insensitive_and_repeatable(service, core_rec
     assert len(service.list_teams()) == 3
 
 
+def test_country_import_supports_optional_hemisphere(connection):
+    importer = CsvImportService(connection)
+
+    report = importer.import_csv(
+        "Countries",
+        "name,hemisphere\nNew Zealand,southern\nIreland,Northern\nUnknown,\nBad,Eastern\n",
+    )
+
+    assert (report.imported, report.invalid) == (3, 1)
+    countries = {row["name"]: row["hemisphere"] for row in importer.rugby.list_countries()}
+    assert countries == {"Ireland": "Northern", "New Zealand": "Southern", "Unknown": None}
+
+
 def test_venue_import_supports_optional_fields_and_skips_duplicates(connection):
     importer = CsvImportService(connection)
     importer.import_csv("Countries", "name\nEngland\nChanged\n")
@@ -105,6 +118,19 @@ def test_venue_import_supports_optional_fields_and_skips_duplicates(connection):
 
     repeated = importer.import_csv("Venues", "name\nTWICKENHAM STADIUM\n")
     assert (repeated.imported, repeated.skipped) == (0, 1)
+
+
+def test_competition_import_supports_hemisphere_aware_flag(connection):
+    importer = CsvImportService(connection)
+
+    report = importer.import_csv(
+        "Competitions",
+        "name,season,gender,hemisphere_aware\nGlobal,2027,Women,yes\nBad,2027,Men,maybe\n",
+    )
+
+    assert (report.imported, report.invalid) == (1, 1)
+    assert importer.rugby.list_competitions()[0]["hemisphere_aware"] == 1
+    assert "Hemisphere aware must be true or false." in report.issues[0].messages
 
 
 def test_every_import_type_ignores_existing_entities_and_leaves_them_intact(

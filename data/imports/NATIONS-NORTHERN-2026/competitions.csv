@@ -1,2 +1,2 @@
-name,season,gender,ruleset
-Nations Championship Northern Series,2026,Men,nations_2026
+name,season,gender,ruleset,hemisphere_aware
+Nations Championship Northern Series,2026,Men,nations_2026,true

@@ -7,12 +7,21 @@ from yoyo import get_backend, read_migrations
 
 from rugby_tracker.config import (
     PROJECT_ROOT,
+    application_version,
     database_path,
     is_read_only_domain,
     migrations_path,
     read_only_domains,
 )
 from rugby_tracker.database import apply_migrations, connect
+
+
+def test_application_version_comes_from_project_metadata() -> None:
+    """Display the same application version declared by the package metadata.
+
+    :return: None.
+    """
+    assert application_version() == "1.10.0"
 
 
 def test_read_only_domains_default_and_environment_override(monkeypatch) -> None:
@@ -38,11 +47,16 @@ def test_database_is_empty_after_first_migration(connection):
         row["name"] for row in connection.execute("PRAGMA table_info(competitions)").fetchall()
     }
     assert "ruleset" in competition_columns
+    assert "hemisphere_aware" in competition_columns
     team_columns = {
         row["name"] for row in connection.execute("PRAGMA table_info(teams)").fetchall()
     }
     assert "country_id" in team_columns
     assert "country" not in team_columns
+    country_columns = {
+        row["name"] for row in connection.execute("PRAGMA table_info(countries)").fetchall()
+    }
+    assert "hemisphere" in country_columns
     assert connection.execute(
         "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'standings'"
     ).fetchone()[0] == 0
