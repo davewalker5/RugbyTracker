@@ -152,8 +152,8 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     apply_migrations(database)
     connection = connect(database)
     service = RugbyService(connection)
-    bath_country = service.save_country(name="Bath")
-    leicester_country = service.save_country(name="Leicester Tigers")
+    bath_country = service.save_country(name="Bath", hemisphere="Southern")
+    leicester_country = service.save_country(name="Leicester Tigers", hemisphere="Northern")
     england = service.save_country(name="England")
     venue = service.save_venue(name="The Rec", country_id=england)
     home = service.save_team(
@@ -167,7 +167,8 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
         name="Bath Women", country_id=england, gender="Women", home_venue_id=venue
     )
     competition = service.save_competition(
-        name="PREM", season="2025/26", gender="Men", ruleset="prem_2025_26"
+        name="PREM", season="2025/26", gender="Men", ruleset="prem_2025_26",
+        hemisphere_aware=True,
     )
     later_competition = service.save_competition(
         name="PREM", season="2026/27", gender="Men", ruleset="prem_2025_26"
@@ -207,6 +208,10 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     assert app.selectbox[0].value is None
     app.selectbox[0].set_value(competition).run()
     assert app.dataframe[0].value["Team"].tolist() == ["Bath", "Leicester Tigers"]
+    assert app.selectbox[1].label == "Hemisphere"
+    assert app.selectbox[1].value == "Both hemispheres"
+    app.selectbox[1].set_value("Northern").run()
+    assert app.dataframe[0].value["Team"].tolist() == ["Leicester Tigers"]
 
     app.radio[0].set_value("Matches").run()
 
@@ -285,7 +290,7 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
         "Men and Women", "Men", "prem_2025_26"
     ]
     assert app.checkbox[0].label == "Hemisphere aware"
-    assert app.checkbox[0].value is False
+    assert app.checkbox[0].value is True
 
     app.radio[0].set_value("Venues").run()
     assert not app.exception

@@ -1505,8 +1505,19 @@ def league_table_page(service: RugbyService) -> None:
     if competition_id is None:
         st.info("Select a competition to calculate its league table.")
         return
+    selected_competition = next(
+        row for row in competitions if int(row["id"]) == int(competition_id)
+    )
+    hemisphere = None
+    if selected_competition.get("hemisphere_aware"):
+        hemisphere_filter = st.selectbox(
+            "Hemisphere",
+            ("Both hemispheres", "Northern", "Southern"),
+            key="league_hemisphere_filter",
+        )
+        hemisphere = None if hemisphere_filter == "Both hemispheres" else hemisphere_filter
     try:
-        result = service.league_table(int(competition_id))
+        result = service.league_table(int(competition_id), hemisphere)
     except ValidationError as error:
         st.warning(str(error))
         return
@@ -1533,7 +1544,7 @@ def league_table_page(service: RugbyService) -> None:
     filename_season = str(competition["season"]).replace("/", "-")
     st.download_button(
         "Download league table CSV",
-        service.league_table_csv(int(competition_id)),
+        service.league_table_csv(int(competition_id), hemisphere),
         file_name=f"{filename_name}_{filename_season}_table.csv",
         mime="text/csv",
         disabled=not result["table"],

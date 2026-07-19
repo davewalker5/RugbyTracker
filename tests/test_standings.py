@@ -329,6 +329,14 @@ def test_service_requires_ruleset_then_calculates_and_exports(service, core_reco
         season="2025/26",
         gender="Men",
         ruleset="prem_2025_26",
+        hemisphere_aware=True,
+    )
+    service.save_country(
+        entity_id=core_records["bath_country"], name="Bath", hemisphere="Southern"
+    )
+    service.save_country(
+        entity_id=core_records["leicester_country"],
+        name="Leicester Tigers", hemisphere="Northern",
     )
     service.save_match(
         competition_id=core_records["competition"],
@@ -346,6 +354,10 @@ def test_service_requires_ruleset_then_calculates_and_exports(service, core_reco
     assert result["table"][0]["Country"] == "Bath"
     assert result["table"][0]["Pts"] == 5
     assert "Bath" in service.league_table_csv(core_records["competition"])
+    assert [row["Team"] for row in service.league_table(
+        core_records["competition"], "Northern"
+    )["table"]] == ["Leicester Tigers"]
+    assert "Bath" not in service.league_table_csv(core_records["competition"], "Northern")
 
 
 SIX_NATIONS_TEAMS = ("England", "France", "Ireland", "Italy", "Scotland", "Wales")

@@ -522,10 +522,13 @@ class RugbyService:
                 f"This {entity} is in use and cannot be deleted. Update or delete its related records first."
             ) from error
 
-    def league_table(self, competition_id: int) -> dict[str, Any]:
+    def league_table(
+        self, competition_id: int, hemisphere: str | None = None
+    ) -> dict[str, Any]:
         """Calculate the current table for a competition.
 
         :param competition_id: Competition identifier to calculate.
+        :param hemisphere: Optional Northern or Southern team filter.
         :return: Competition details and calculated, ordered table rows.
         :raises ValidationError: If the competition is missing or has no ruleset.
         """
@@ -536,25 +539,48 @@ class RugbyService:
         ruleset = competition.get("ruleset")
         if not ruleset:
             raise ValidationError("Select a league-table ruleset for this competition first.")
+        selected_hemisphere = valid_hemisphere(hemisphere)
+        if selected_hemisphere and not competition.get("hemisphere_aware"):
+            raise ValidationError("This competition is not hemisphere aware.")
         try:
             calculation = calculate_competition(
                 self.repo.list_matches(competition_id), str(ruleset)
             )
         except ValueError as error:
             raise ValidationError(str(error)) from error
+        if selected_hemisphere:
+            countries = {
+                row["name"]: row["hemisphere"] for row in self.list_countries()
+            }
+            filtered = [
+                row for row in calculation["table"]
+                if countries.get(row["Country"]) == selected_hemisphere
+            ]
+            previous_position: int | None = None
+            position = 0
+            for index, row in enumerate(filtered, start=1):
+                original_position = int(row["Pos"])
+                if original_position != previous_position:
+                    position = index
+                row["Pos"] = position
+                previous_position = original_position
+            calculation["table"] = filtered
         return {
             "competition": competition,
             "ruleset": rulesets[str(ruleset)],
             **calculation,
         }
 
-    def league_table_csv(self, competition_id: int) -> str:
+    def league_table_csv(
+        self, competition_id: int, hemisphere: str | None = None
+    ) -> str:
         """Export a freshly calculated competition table as CSV text.
 
         :param competition_id: Competition identifier to calculate and export.
+        :param hemisphere: Optional Northern or Southern team filter.
         :return: CSV text containing the current league table.
         """
-        return table_to_csv(self.league_table(competition_id)["table"])
+        return table_to_csv(self.league_table(competition_id, hemisphere)["table"])
 
     def team_summary(self, competition_id: int, team_id: int) -> TeamSummaryReport:
         """Calculate a team summary for one competition record.
