@@ -120,6 +120,19 @@ def test_venue_import_supports_optional_fields_and_skips_duplicates(connection):
     assert (repeated.imported, repeated.skipped) == (0, 1)
 
 
+def test_competition_import_supports_hemisphere_aware_flag(connection):
+    importer = CsvImportService(connection)
+
+    report = importer.import_csv(
+        "Competitions",
+        "name,season,gender,hemisphere_aware\nGlobal,2027,Women,yes\nBad,2027,Men,maybe\n",
+    )
+
+    assert (report.imported, report.invalid) == (1, 1)
+    assert importer.rugby.list_competitions()[0]["hemisphere_aware"] == 1
+    assert "Hemisphere aware must be true or false." in report.issues[0].messages
+
+
 def test_every_import_type_ignores_existing_entities_and_leaves_them_intact(
     service, core_records, connection
 ):

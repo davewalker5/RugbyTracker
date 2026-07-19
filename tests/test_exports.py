@@ -53,6 +53,9 @@ def test_csv_exports_use_import_schemas_and_related_names(
         '"head_to_head_points"]'
     )
     assert list(csv.DictReader(io.StringIO(exported["Competitions"])))[0]["name"] == "Premiership Rugby"
+    assert list(csv.DictReader(io.StringIO(exported["Competitions"])))[0][
+        "hemisphere_aware"
+    ] == "false"
     assert list(csv.DictReader(io.StringIO(exported["Referees"])))[0]["name"] == "Luke Pearce"
     match_row = list(csv.DictReader(io.StringIO(exported["Matches"])))[0]
     assert match_row["competition"] == "Premiership Rugby"

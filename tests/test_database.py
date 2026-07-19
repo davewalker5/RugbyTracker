@@ -38,6 +38,7 @@ def test_database_is_empty_after_first_migration(connection):
         row["name"] for row in connection.execute("PRAGMA table_info(competitions)").fetchall()
     }
     assert "ruleset" in competition_columns
+    assert "hemisphere_aware" in competition_columns
     team_columns = {
         row["name"] for row in connection.execute("PRAGMA table_info(teams)").fetchall()
     }

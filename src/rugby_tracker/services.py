@@ -403,7 +403,7 @@ class RugbyService:
         """Create or update a competition after validating its fields.
 
         :param entity_id: Existing competition identifier, or ``None`` to create one.
-        :param values: Competition fields including name, season, and category.
+        :param values: Competition fields including name, season, category, and hemisphere flag.
         :return: The saved competition's identifier.
         """
         data = {
@@ -411,6 +411,7 @@ class RugbyService:
             "season": required_text(values.get("season"), "Season"),
             "gender": valid_gender(values.get("gender")),
             "ruleset": valid_ruleset(values.get("ruleset")),
+            "hemisphere_aware": int(bool(values.get("hemisphere_aware", False))),
         }
         return self._save(self.repo.competitions, entity_id, data)
 

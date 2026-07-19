@@ -1,2 +1,2 @@
-name,season,gender,ruleset
-PREM,2025/26,Men,
+name,season,gender,ruleset,hemisphere_aware
+PREM,2025/26,Men,prem_2025_26,false

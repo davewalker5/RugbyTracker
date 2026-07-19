@@ -464,19 +464,26 @@ def competitions_page(service: RugbyService, connection: Any) -> None:
                 format_func=lambda value: "No league table" if value == "" else rulesets[value].label,
                 placeholder="Select a league-table ruleset (optional)",
             ),
+            "hemisphere_aware": st.checkbox(
+                "Hemisphere aware",
+                value=bool(row["hemisphere_aware"]) if row else False,
+                help="Marks competitions that have separate northern and southern tables",
+            ),
         }
 
     display_rows = [
         {
             **row,
             "ruleset_label": rulesets[row["ruleset"]].label if row.get("ruleset") in rulesets else "—",
+            "hemisphere_aware_label": "Yes" if row.get("hemisphere_aware") else "No",
         }
         for row in records
     ]
     _entity_page("Competitions", "competition", display_rows,
                  fields, service.save_competition,
                  lambda entity_id: service.delete("competition", entity_id),
-                 {"name": "Name", "season": "Season", "gender": "Category", "ruleset_label": "Ruleset"},
+                 {"name": "Name", "season": "Season", "gender": "Category",
+                  "ruleset_label": "Ruleset", "hemisphere_aware_label": "Hemisphere aware"},
                  connection, gender_filter_key="competitions_gender_filter")
 
 

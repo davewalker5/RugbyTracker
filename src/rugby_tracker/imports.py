@@ -41,7 +41,7 @@ TEMPLATE_HEADERS = {
     "Venues": ("name", "town_city", "country"),
     "Teams": ("name", "country", "gender", "home_venue"),
     "Rulesets": RULESET_HEADERS,
-    "Competitions": ("name", "season", "gender", "ruleset"),
+    "Competitions": ("name", "season", "gender", "ruleset", "hemisphere_aware"),
     "Referees": ("name",),
     "Matches": (
         "competition", "season", "round", "venue", "referee", "date", "kickoff_time",
@@ -318,6 +318,9 @@ class CsvImportService:
         season = self._value(lambda: required_text(row.get("season"), "Season"), messages)
         gender = self._value(lambda: self._gender(row.get("gender")), messages)
         ruleset = self._value(lambda: valid_ruleset(row.get("ruleset")), messages)
+        hemisphere_aware = self._value(
+            lambda: self._boolean(row.get("hemisphere_aware"), "Hemisphere aware"), messages
+        )
         if messages:
             return None, messages
         return {
@@ -325,6 +328,7 @@ class CsvImportService:
             "season": season,
             "gender": gender,
             "ruleset": ruleset,
+            "hemisphere_aware": hemisphere_aware,
         }, messages
 
     def _validate_ruleset(

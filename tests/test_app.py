@@ -284,6 +284,8 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
     assert [selector.value for selector in app.selectbox] == [
         "Men and Women", "Men", "prem_2025_26"
     ]
+    assert app.checkbox[0].label == "Hemisphere aware"
+    assert app.checkbox[0].value is False
 
     app.radio[0].set_value("Venues").run()
     assert not app.exception
