@@ -98,7 +98,7 @@ class RugbyRepository:
         :return: None.
         """
         self.connection = connection
-        self.countries = Repository(connection, "countries", ("name",))
+        self.countries = Repository(connection, "countries", ("name", "hemisphere"))
         self.venues = Repository(connection, "venues", ("name", "town_city", "country_id"))
         self.teams = Repository(
             connection, "teams", ("name", "country_id", "gender", "home_venue_id")

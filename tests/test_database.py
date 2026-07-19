@@ -43,6 +43,10 @@ def test_database_is_empty_after_first_migration(connection):
     }
     assert "country_id" in team_columns
     assert "country" not in team_columns
+    country_columns = {
+        row["name"] for row in connection.execute("PRAGMA table_info(countries)").fetchall()
+    }
+    assert "hemisphere" in country_columns
     assert connection.execute(
         "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'standings'"
     ).fetchone()[0] == 0

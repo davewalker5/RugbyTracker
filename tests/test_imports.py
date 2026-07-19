@@ -91,6 +91,19 @@ def test_reference_imports_are_case_insensitive_and_repeatable(service, core_rec
     assert len(service.list_teams()) == 3
 
 
+def test_country_import_supports_optional_hemisphere(connection):
+    importer = CsvImportService(connection)
+
+    report = importer.import_csv(
+        "Countries",
+        "name,hemisphere\nNew Zealand,southern\nIreland,Northern\nUnknown,\nBad,Eastern\n",
+    )
+
+    assert (report.imported, report.invalid) == (3, 1)
+    countries = {row["name"]: row["hemisphere"] for row in importer.rugby.list_countries()}
+    assert countries == {"Ireland": "Northern", "New Zealand": "Southern", "Unknown": None}
+
+
 def test_venue_import_supports_optional_fields_and_skips_duplicates(connection):
     importer = CsvImportService(connection)
     importer.import_csv("Countries", "name\nEngland\nChanged\n")

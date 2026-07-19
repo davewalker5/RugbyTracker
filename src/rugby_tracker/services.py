@@ -28,6 +28,7 @@ from rugby_tracker.standings import (
 
 
 GENDERS = ("Men", "Women")
+HEMISPHERES = ("Southern", "Northern")
 
 
 class ValidationError(ValueError):
@@ -68,6 +69,22 @@ def valid_gender(value: Any) -> str:
     if value not in GENDERS:
         raise ValidationError("Category must be Men or Women.")
     return str(value)
+
+
+def valid_hemisphere(value: Any) -> str | None:
+    """Validate and canonicalise an optional country hemisphere.
+
+    :param value: Candidate hemisphere supplied by the editor or an import.
+    :return: Canonical hemisphere, or ``None`` when no value is supplied.
+    :raises ValidationError: If the value is not Southern, Northern, or blank.
+    """
+    candidate = optional_text(value)
+    if candidate is None:
+        return None
+    for hemisphere in HEMISPHERES:
+        if candidate.casefold() == hemisphere.casefold():
+            return hemisphere
+    raise ValidationError("Hemisphere must be Southern, Northern, or blank.")
 
 
 def non_negative(value: Any, label: str) -> int:
@@ -291,7 +308,7 @@ class RugbyService:
         """Create or update a standalone country record.
 
         :param entity_id: Existing country identifier, or ``None`` to create one.
-        :param values: Country fields including the mandatory unique name.
+        :param values: Country fields including the mandatory unique name and optional hemisphere.
         :return: The saved country's identifier.
         :raises ValidationError: If another country already uses the name.
         """
@@ -308,7 +325,7 @@ class RugbyService:
         return self._save(
             self.repo.countries,
             entity_id,
-            {"name": name},
+            {"name": name, "hemisphere": valid_hemisphere(values.get("hemisphere"))},
         )
 
     def list_venues(self) -> list[dict[str, Any]]:

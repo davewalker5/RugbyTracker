@@ -296,7 +296,9 @@ def test_results_render_in_league_table_and_matches_page(monkeypatch, tmp_path):
 
     app.radio[0].set_value("Countries").run()
     assert not app.exception
-    assert not app.selectbox
+    assert len(app.selectbox) == 1
+    assert app.selectbox[0].label == "Hemisphere"
+    assert app.selectbox[0].value is None
     assert set(app.dataframe[0].value["Name"]) == {
         "Bath", "England", "Leicester Tigers",
     }

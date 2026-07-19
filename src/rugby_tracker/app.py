@@ -33,7 +33,7 @@ from rugby_tracker.config import is_read_only_domain
 from rugby_tracker.database import apply_migrations, connect
 from rugby_tracker.exports import EXPORT_TYPES, CsvExportService
 from rugby_tracker.imports import IMPORT_TYPES, CsvImportService, ImportReport
-from rugby_tracker.services import GENDERS, RugbyService, ValidationError
+from rugby_tracker.services import GENDERS, HEMISPHERES, RugbyService, ValidationError
 
 
 WIN_BACKGROUND = "#d9ead3"
@@ -516,11 +516,22 @@ def countries_page(service: RugbyService, connection: Any) -> None:
         :param row: Existing country row, or ``None`` for a new country.
         :return: Values entered in the country form.
         """
-        return {"name": st.text_input("Name *", value=row["name"] if row else "")}
+        hemisphere_options = (None, *HEMISPHERES)
+        current = row.get("hemisphere") if row else None
+        return {
+            "name": st.text_input("Name *", value=row["name"] if row else ""),
+            "hemisphere": st.selectbox(
+                "Hemisphere",
+                hemisphere_options,
+                index=hemisphere_options.index(current),
+                format_func=lambda value: "Not set" if value is None else value,
+            ),
+        }
 
     _entity_page(
         "Countries", "country", records, fields, service.save_country,
-        lambda entity_id: service.delete("country", entity_id), {"name": "Name"},
+        lambda entity_id: service.delete("country", entity_id),
+        {"name": "Name", "hemisphere": "Hemisphere"},
         connection,
     )
 

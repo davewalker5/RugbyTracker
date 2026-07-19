@@ -1,19 +1,19 @@
-name
-Australia
-Australia Women
-Canada
-Canada Women
-England
-France
-Ireland
-Italy
-Japan
-Japan Women
-New Zealand
-New Zealand Women
-Scotland
-South Africa
-South Africa Women
-United States
-USA Women
-Wales
+name,hemisphere
+Australia,Southern
+Australia Women,
+Canada,
+Canada Women,
+England,Northern
+France,Northern
+Ireland,Northern
+Italy,Northern
+Japan,Southern
+Japan Women,
+New Zealand,Southern
+New Zealand Women,
+Scotland,Northern
+South Africa,Southern
+South Africa Women,
+United States,
+USA Women,
+Wales,Northern

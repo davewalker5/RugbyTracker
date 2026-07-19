@@ -16,7 +16,7 @@ EXPORT_TYPES = (
 )
 
 EXPORT_HEADERS = {
-    "Countries": ("name",),
+    "Countries": ("name", "hemisphere"),
     "Venues": ("name", "town_city", "country"),
     "Teams": ("name", "country", "gender", "home_venue"),
     "Rulesets": RULESET_HEADERS,

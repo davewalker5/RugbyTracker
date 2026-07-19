@@ -1,8 +1,8 @@
-name
-England
-France
-Ireland
-Italy
-Northern Ireland
-Scotland
-Wales
+name,hemisphere
+England,Northern
+France,Northern
+Ireland,Northern
+Italy,Northern
+Northern Ireland,
+Scotland,Northern
+Wales,Northern

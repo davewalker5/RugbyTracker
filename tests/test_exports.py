@@ -36,6 +36,9 @@ def test_csv_exports_use_import_schemas_and_related_names(
     # Core fixtures already create the country records required by their references.
 
     exported = {entity_type: exporter.export_csv(entity_type) for entity_type in EXPORT_TYPES}
+    assert list(csv.DictReader(io.StringIO(exported["Countries"])))[0].keys() == {
+        "name", "hemisphere"
+    }
     assert {row["name"] for row in csv.DictReader(io.StringIO(exported["Countries"]))} == {
         "Bath", "England", "Leicester Tigers",
     }
