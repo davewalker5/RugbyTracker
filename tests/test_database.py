@@ -5,6 +5,7 @@ import sqlite3
 import pytest
 from yoyo import get_backend, read_migrations
 
+import rugby_tracker.config as config
 from rugby_tracker.config import (
     PROJECT_ROOT,
     application_version,
@@ -21,6 +22,16 @@ def test_application_version_comes_from_project_metadata() -> None:
 
     :return: None.
     """
+    assert application_version() == "1.10.0"
+
+
+def test_application_version_comes_from_installed_metadata_without_source_tree(
+    monkeypatch, tmp_path
+) -> None:
+    """Installed distributions do not require ``pyproject.toml`` at runtime."""
+    monkeypatch.setattr(config, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(config, "version", lambda distribution: "1.10.0")
+
     assert application_version() == "1.10.0"
 
 
