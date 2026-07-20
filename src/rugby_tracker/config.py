@@ -4,21 +4,27 @@ from __future__ import annotations
 
 import os
 import tomllib
+from importlib.metadata import version
 from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DISTRIBUTION_NAME = "rugby-union-tracker"
 DEFAULT_READ_ONLY_DOMAINS = ("streamlit.app",)
 
 
 def application_version() -> str:
-    """Return the application version declared in ``pyproject.toml``.
+    """Return the application version from source or installed metadata.
 
     :return: Project version used in application branding.
     """
-    with (PROJECT_ROOT / "pyproject.toml").open("rb") as project_file:
-        project = tomllib.load(project_file)
-    return str(project["project"]["version"])
+    project_metadata = PROJECT_ROOT / "pyproject.toml"
+    if project_metadata.is_file():
+        with project_metadata.open("rb") as project_file:
+            project = tomllib.load(project_file)
+        return str(project["project"]["version"])
+
+    return version(DISTRIBUTION_NAME)
 
 
 def project_root() -> Path:
