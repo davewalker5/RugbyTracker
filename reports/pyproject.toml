@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rugby-union-tracker-reports"
-version = "1.0.0"
+version = "1.11.0"
 description = "Rugby Union Competition Tracker Reports"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -12,5 +12,5 @@ dependencies = [
     "ipykernel>=6.29,<7",
     "matplotlib>=3.9,<4",
     "nbconvert>=7.16,<8",
-    "pandas>=2.2,<3",
+    "pandas>=2.2.3,<3",
 ]
