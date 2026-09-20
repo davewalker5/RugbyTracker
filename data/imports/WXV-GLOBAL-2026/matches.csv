@@ -1,12 +1,12 @@
 competition,season,round,venue,referee,date,kickoff_time,home_team,home_country,away_team,away_country,home_tries,away_tries,home_score,away_score
-WXV Global Series,2026,1,Stade de Gerland,,2026-09-12,,Les Bleues,France,Black Ferns,New Zealand Women,,,,
-WXV Global Series,2026,1,Edinburgh Rugby Stadium,,2026-09-12,,Scotland Women,Scotland,Canada Women,Canada Women,,,,
-WXV Global Series,2026,1,CorpAcq Stadium,,2026-09-12,15:00,Red Roses,England,Wallaroos,Australia Women,,,,
-WXV Global Series,2026,2,Cardiff Arms Park,,2026-09-18,,Wales Women,Wales,Springbok Women,South Africa Women,,,,
-WXV Global Series,2026,2,Stade Maurice David,,2026-09-19,,Les Bleues,France,Wallaroos,Australia Women,,,,
-WXV Global Series,2026,2,Edinburgh Rugby Stadium,,2026-09-19,,Scotland Women,Scotland,Black Ferns,New Zealand Women,,,,
-WXV Global Series,2026,2,Stadio Omero Tognon,,2026-09-19,,Le Azzurre,Italy,Sakura Fifteen,Japan Women,,,,
-WXV Global Series,2026,2,Sandy Park,,2026-09-19,15:00,Red Roses,England,Canada Women,Canada Women,,,,
+WXV Global Series,2026,1,Stade de Gerland,Clara Munarini,2026-09-12,,Les Bleues,France,Black Ferns,New Zealand Women,2,4,14,28
+WXV Global Series,2026,1,Edinburgh Rugby Stadium,Holly Wood,2026-09-12,,Scotland Women,Scotland,Canada Women,Canada Women,4,10,26,64
+WXV Global Series,2026,1,CorpAcq Stadium,Aurelie Groizeleau,2026-09-12,15:00,Red Roses,England,Wallaroos,Australia Women,8,3,48,15
+WXV Global Series,2026,2,Cardiff Arms Park,Ella Goldsmith,2026-09-18,,Wales Women,Wales,Springbok Women,South Africa Women,8,3,50,19
+WXV Global Series,2026,2,Stade Maurice David,Holly Wood,2026-09-19,,Les Bleues,France,Wallaroos,Australia Women,5,4,29,26
+WXV Global Series,2026,2,Edinburgh Rugby Stadium,Jess Ling,2026-09-19,,Scotland Women,Scotland,Black Ferns,New Zealand Women,2,10,14,66
+WXV Global Series,2026,2,Stadio Omero Tognon,Zoe Naude,2026-09-19,,Le Azzurre,Italy,Sakura Fifteen,Japan Women,9,3,55,21
+WXV Global Series,2026,2,Sandy Park,Clara Munarini,2026-09-19,15:00,Red Roses,England,Canada Women,Canada Women,4,4,26,26
 WXV Global Series,2026,2,Tallaght Stadium,,2026-09-20,,Girls in Green,Ireland,Women's Eagles,USA Women,,,,
 WXV Global Series,2026,3,Stade Marcel-Deflandre,,2026-09-26,,Les Bleues,France,Canada Women,Canada Women,,,,
 WXV Global Series,2026,3,Edinburgh Rugby Stadium,,2026-09-26,,Scotland Women,Scotland,Wallaroos,Australia Women,,,,
