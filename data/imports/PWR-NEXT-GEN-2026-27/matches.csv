@@ -1,8 +1,8 @@
 competition,season,round,venue,referee,date,kickoff_time,home_team,home_country,away_team,away_country,home_tries,away_tries,home_score,away_score
-JAECOO PWR Next Gen Cup,2026/27,1,North Bristol RFC,,2026-09-19,13:00,Bristol Bears Women,England,Trailfinders Women,England,,,,
-JAECOO PWR Next Gen Cup,2026/27,1,Twickenham Stoop,,2026-09-19,13:30,Harlequins Women,England,Gloucester-Hartpury,England,,,,
-JAECOO PWR Next Gen Cup,2026/27,1,Mattioli Woods Welford Road,,2026-09-19,14:00,Leicester Tigers Women,England,Saracens Women,England,,,,
-JAECOO PWR Next Gen Cup,2026/27,1,Morson Stadium,,2026-09-19,14:00,Sale Sharks Women,England,Loughborough Lightning,England,,,,
+JAECOO PWR Next Gen Cup,2026/27,1,North Bristol RFC,Charlie Gayther,2026-09-19,13:00,Bristol Bears Women,England,Trailfinders Women,England,4,4,24,28
+JAECOO PWR Next Gen Cup,2026/27,1,Twickenham Stoop,Matt Sharpe,2026-09-19,13:30,Harlequins Women,England,Gloucester-Hartpury,England,3,10,19,66
+JAECOO PWR Next Gen Cup,2026/27,1,Mattioli Woods Welford Road,Rosie Procter,2026-09-19,14:00,Leicester Tigers Women,England,Saracens Women,England,0,10,0,66
+JAECOO PWR Next Gen Cup,2026/27,1,Morson Stadium,Andy Wigley,2026-09-19,14:00,Sale Sharks Women,England,Loughborough Lightning,England,5,4,34,26
 JAECOO PWR Next Gen Cup,2026/27,2,Sandy Park,,2026-09-27,13:00,Exeter Chiefs Women,England,Leicester Tigers Women,England,,,,
 JAECOO PWR Next Gen Cup,2026/27,2,StoneX Stadium,,2026-09-27,14:00,Saracens Women,England,Sale Sharks Women,England,,,,
 JAECOO PWR Next Gen Cup,2026/27,3,Goldington Road,,2026-10-02,19:30,Loughborough Lightning,England,Saracens Women,England,,,,
