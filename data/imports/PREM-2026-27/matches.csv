@@ -1,14 +1,14 @@
 competition,season,round,venue,referee,date,kickoff_time,home_team,home_country,away_team,away_country,home_tries,away_tries,home_score,away_score
-PREM,2026/27,1,Twickenham Stoop,,2026-09-25,19:45,Harlequins,England,Bath Rugby,England,,,,
-PREM,2026/27,1,Cinch Stadium,,2026-09-25,19:45,Northampton Saints,England,Newcastle Red Bulls,England,,,,
-PREM,2026/27,1,Sandy Park,,2026-09-26,15:05,Exeter Chiefs,England,Gloucester Rugby,England,,,,
-PREM,2026/27,1,CorpAcq Stadium,,2026-09-26,17:30,Sale Sharks,England,Bristol Bears,England,,,,
-PREM,2026/27,1,Mattioli Woods Welford Road,,2026-09-27,15:00,Leicester Tigers,England,Saracens,England,,,,
-PREM,2026/27,2,The Recreation Ground,,2026-10-02,19:45,Bath Rugby,England,Exeter Chiefs,England,,,,
-PREM,2026/27,2,Ashton Gate,,2026-10-03,15:05,Bristol Bears,England,Northampton Saints,England,,,,
-PREM,2026/27,2,Kingsholm,,2026-10-03,17:30,Gloucester Rugby,England,Harlequins,England,,,,
-PREM,2026/27,2,Kingston Park Stadium,,2026-10-03,19:45,Newcastle Red Bulls,England,Leicester Tigers,England,,,,
-PREM,2026/27,2,StoneX Stadium,,2026-10-04,15:00,Saracens,England,Sale Sharks,England,,,,
+PREM,2026/27,1,Twickenham Stoop,Karl Dickson,2026-09-25,19:45,Harlequins,England,Bath Rugby,England,3,5,17,33
+PREM,2026/27,1,Cinch Stadium,Anthony Woodthorpe,2026-09-25,19:45,Northampton Saints,England,Newcastle Red Bulls,England,9,4,59,26
+PREM,2026/27,1,Sandy Park,Matthew Carley,2026-09-26,15:05,Exeter Chiefs,England,Gloucester Rugby,England,4,7,24,45
+PREM,2026/27,1,CorpAcq Stadium,Sara Cox,2026-09-26,17:30,Sale Sharks,England,Bristol Bears,England,3,5,24,34
+PREM,2026/27,1,Mattioli Woods Welford Road,Ian Tempest,2026-09-27,15:00,Leicester Tigers,England,Saracens,England,6,6,38,40
+PREM,2026/27,2,The Recreation Ground,Luke Pearce,2026-10-02,19:45,Bath Rugby,England,Exeter Chiefs,England,6,5,40,34
+PREM,2026/27,2,Ashton Gate,Ian Tempest,2026-10-03,15:05,Bristol Bears,England,Northampton Saints,England,,,,
+PREM,2026/27,2,Kingsholm,Sara Cox,2026-10-03,17:30,Gloucester Rugby,England,Harlequins,England,,,,
+PREM,2026/27,2,Kingston Park Stadium,Christophe Ridley,2026-10-03,19:45,Newcastle Red Bulls,England,Leicester Tigers,England,,,,
+PREM,2026/27,2,StoneX Stadium,Joe James,2026-10-04,15:00,Saracens,England,Sale Sharks,England,,,,
 PREM,2026/27,3,Mattioli Woods Welford Road,,2026-10-09,19:45,Leicester Tigers,England,Gloucester Rugby,England,,,,
 PREM,2026/27,3,Cinch Stadium,,2026-10-10,15:05,Northampton Saints,England,Bath Rugby,England,,,,
 PREM,2026/27,3,StoneX Stadium,,2026-10-10,17:30,Saracens,England,Bristol Bears,England,,,,
