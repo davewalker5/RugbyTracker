@@ -1,19 +1,19 @@
 competition,season,round,venue,referee,date,kickoff_time,home_team,home_country,away_team,away_country,home_tries,away_tries,home_score,away_score
-Nations Championship Northern Series,2026,4,Aviva Stadium,,2026-11-06,20:10,Ireland,Ireland,Los Pumas,Argentina,,,,
-Nations Championship Northern Series,2026,4,Allianz Stadium Sydney,,2026-11-07,11:40,Azzurri,Italy,Springboks,South Africa,,,,
-Nations Championship Northern Series,2026,4,Murrayfield,,2026-11-07,14:10,Scotland,Scotland,All Blacks,New Zealand,,,,
-Nations Championship Northern Series,2026,4,Principality Stadium,,2026-11-07,16:40,Wales,Wales,Brave Blossoms,Japan,,,,
-Nations Championship Northern Series,2026,4,Groupama Stadium,,2026-11-07,20:10,Les Bleus,France,Flying Fijians,Fiji,,,,
-Nations Championship Northern Series,2026,4,Twickenham Stadium,,2026-11-08,15:10,England,England,Wallabies,Australia,,,,
-Nations Championship Northern Series,2026,5,Stade de France,,2026-11-13,20:10,Les Bleus,France,Springboks,South Africa,,,,
-Nations Championship Northern Series,2026,5,Stadio Luigi Ferraris,,2026-11-14,11:40,Azzurri,Italy,Los Pumas,Argentina,,,,
-Nations Championship Northern Series,2026,5,Principality Stadium,,2026-11-14,14:10,Wales,Wales,All Blacks,New Zealand,,,,
-Nations Championship Northern Series,2026,5,Twickenham Stadium,,2026-11-14,16:40,England,England,Brave Blossoms,Japan,,,,
-Nations Championship Northern Series,2026,5,Aviva Stadium,,2026-11-14,20:10,Ireland,Ireland,Flying Fijians,Fiji,,,,
-Nations Championship Northern Series,2026,5,Murrayfield,,2026-11-15,15:10,Scotland,Scotland,Wallabies,Australia,,,,
-Nations Championship Northern Series,2026,6,Twickenham Stadium,,2026-11-21,14:10,England,England,All Blacks,New Zealand,,,,
-Nations Championship Northern Series,2026,6,Murrayfield,,2026-11-21,14:10,Scotland,Scotland,Brave Blossoms,Japan,,,,
-Nations Championship Northern Series,2026,6,Aviva Stadium,,2026-11-21,16:40,Ireland,Ireland,Springboks,South Africa,,,,
-Nations Championship Northern Series,2026,6,Bluenergy Stadium,,2026-11-21,16:40,Azzurri,Italy,Flying Fijians,Fiji,,,,
-Nations Championship Northern Series,2026,6,Stade de France,,2026-11-21,20:10,Les Bleus,France,Los Pumas,Argentina,,,,
-Nations Championship Northern Series,2026,6,Principality Stadium,,2026-11-21,20:10,Wales,Wales,Wallabies,Australia,,,,
+Nations Championship Northern Series,2026,4,Aviva Stadium,Luke Pearce,2026-11-06,20:10,Ireland,Ireland,Los Pumas,Argentina,6,2,42,12
+Nations Championship Northern Series,2026,4,Allianz Stadium Twickenham,Eoghan Cross,2026-11-07,11:40,Azzurri,Italy,Springboks,South Africa,1,9,7,66
+Nations Championship Northern Series,2026,4,Murrayfield,Andrew Brace,2026-11-07,14:10,Scotland,Scotland,All Blacks,New Zealand,3,7,21,43
+Nations Championship Northern Series,2026,4,Principality Stadium,Paul Williams,2026-11-07,16:40,Wales,Wales,Brave Blossoms,Japan,4,3,28,21
+Nations Championship Northern Series,2026,4,Groupama Stadium,Karl Dickson,2026-11-07,20:10,Les Bleus,France,Flying Fijians,Fiji,8,2,54,17
+Nations Championship Northern Series,2026,4,Twickenham Stadium,Pierre Brousset,2026-11-08,15:10,England,England,Wallabies,Australia,7,3,45,22
+Nations Championship Northern Series,2026,5,Stade de France,Andrea Piardi,2026-11-13,20:10,Les Bleus,France,Springboks,South Africa,3,3,21,19
+Nations Championship Northern Series,2026,5,Stadio Luigi Ferraris,Nika Amashukeli,2026-11-14,11:40,Azzurri,Italy,Los Pumas,Argentina,2,3,14,19
+Nations Championship Northern Series,2026,5,Principality Stadium,Pierre Brousset,2026-11-14,14:10,Wales,Wales,All Blacks,New Zealand,5,4,35,28
+Nations Championship Northern Series,2026,5,Twickenham Stadium,Damian Schneider,2026-11-14,16:40,England,England,Brave Blossoms,Japan,13,2,78,15
+Nations Championship Northern Series,2026,5,Aviva Stadium,Angus Gardner,2026-11-14,20:10,Ireland,Ireland,Flying Fijians,Fiji,7,2,43,15
+Nations Championship Northern Series,2026,5,Murrayfield,James Doleman,2026-11-15,15:10,Scotland,Scotland,Wallabies,Australia,2,2,15,12
+Nations Championship Northern Series,2026,6,Twickenham Stadium,Nic Berry,2026-11-21,14:10,England,England,All Blacks,New Zealand,5,2,37,12
+Nations Championship Northern Series,2026,6,Murrayfield,Ben O'Keeffe,2026-11-21,14:10,Scotland,Scotland,Brave Blossoms,Japan,11,1,67,5
+Nations Championship Northern Series,2026,6,Aviva Stadium,Christophe Ridley,2026-11-21,16:40,Ireland,Ireland,Springboks,South Africa,3,2,20,17
+Nations Championship Northern Series,2026,6,Bluenergy Stadium,Andrew Brace,2026-11-21,16:40,Azzurri,Italy,Flying Fijians,Fiji,1,3,16,21
+Nations Championship Northern Series,2026,6,Stade de France,Hollie Davidson,2026-11-21,20:10,Les Bleus,France,Los Pumas,Argentina,7,2,45,17
+Nations Championship Northern Series,2026,6,Principality Stadium,Luc Ramos,2026-11-21,20:10,Wales,Wales,Wallabies,Australia,4,4,26,29
